@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<fmiModelDescription fmiVersion="3.0-beta.4" modelName="unifmu" instantiationToken="77236337-210e-4e9c-8f2c-c1a0677db21b" author="Yon Vanommeslaeghe" version="0.0.1" license="MIT" generationDateAndTime="2024-08-14T15:12:25Z" variableNamingConvention="flat" generationTool="unifmu">
+  <CoSimulation modelIdentifier="unifmu" needsExecutionTool="true" canBeInstantiatedOnlyOncePerProcess="false" canGetAndSetFMUState="true" canSerializeFMUState="true" canHandleVariableCommunicationStepSize="true" hasEventMode="true" />
+  <LogCategories>
+    <Category name="logStatusWarning" />
+    <Category name="logStatusDiscard" />
+    <Category name="logStatusError" />
+    <Category name="logStatusFatal" />
+    <Category name="logStatusPending" />
+    <Category name="logAll" />
+  </LogCategories>
+  
+  <ModelVariables>
+	<Float32 name="time" valueReference="999" causality="independent" variability="continuous" description="Simulation time"/>
+	<Boolean name="in_heater_on" valueReference="0" variability="discrete" causality="input" start="false" />
+	<Float32 name="T" valueReference="1" variability="continuous" causality="output" initial="calculated" />	
+	<Float32 name="T_heater" valueReference="2" variability="continuous" causality="output" initial="calculated" />
+	
+	<Float32 name="initial_box_temperature" valueReference="10" variability="continuous" causality="parameter" start="21.0" />
+	<Float32 name="initial_heat_temperature" valueReference="11" variability="continuous" causality="parameter" start="21.0" />
+	<Float32 name="initial_room_temperature" valueReference="12" variability="continuous" causality="parameter" start="21.0" />	
+	
+
+	<Float32 name="C_air" valueReference="100" variability="tunable" causality="parameter" start="267.55929458" />
+	<Float32 name="G_box" valueReference="101" variability="tunable" causality="parameter" start="0.5763498" />
+	<Float32 name="C_heater" valueReference="102" variability="tunable" causality="parameter" start="329.25376821" />
+	<Float32 name="G_heater" valueReference="103" variability="tunable" causality="parameter" start="1.67053237" />
+	<Float32 name="V_heater" valueReference="104" variability="tunable" causality="parameter" start="12.15579391" />
+	<Float32 name="I_heater" valueReference="105" variability="tunable" causality="parameter" start="1.53551347" />
+
+  </ModelVariables>
+  <ModelStructure>
+	<Output valueReference="1" dependencies="0" />
+	<Output valueReference="2" dependencies="0" />
+	<InitialUnknown valueReference="1" dependencies="0" />
+	<InitialUnknown valueReference="2" dependencies="0" />
+
+  </ModelStructure>
+</fmiModelDescription>
