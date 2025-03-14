@@ -26,15 +26,17 @@ class Model:
 
         # Replicating ControllerPhysical(OpenLoop) of the incubator without using the fan
         # Controller tunable parameters
-        self.temperature_desired = 35.0
+        # self.temperature_desired = 35.0
         self.lower_bound = 5.0
-        self.heating_time = 20.0
+        # self.heating_time = 20.0
         self.heating_gap = 30.0
         self.n_samples_period = 40 # For OpenLoop
         self.n_samples_heating = 5 # For OpenLoop
 
         # Inputs
         self.box_air_temperature = 0.0
+        self.temperature_desired = 35.0
+        self.heating_time = 20.0
         # self.room_temperature = 0.0
 
         # Outputs
@@ -55,6 +57,8 @@ class Model:
             999: "time",
             0: "box_air_temperature",
             1: "heater_ctrl",
+            2: "temperature_desired",
+            3: "heating_time",
         }
 
         self.clocked_variables = {
@@ -71,9 +75,9 @@ class Model:
         }
 
         self.tunable_parameters = {
-            100: "temperature_desired",
+            # 100: "temperature_desired",
             101: "lower_bound",
-            102: "heating_time",
+            # 102: "heating_time",
             103: "heating_gap",
             104: "n_samples_period",
             105: "n_samples_heating",

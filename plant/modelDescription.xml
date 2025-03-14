@@ -16,9 +16,9 @@
 	<Float32 name="T" valueReference="1" variability="continuous" causality="output" initial="calculated" />	
 	<Float32 name="T_heater" valueReference="2" variability="continuous" causality="output" initial="calculated" />
 	
-	<Float32 name="initial_box_temperature" valueReference="10" variability="continuous" causality="parameter" start="21.0" />
-	<Float32 name="initial_heat_temperature" valueReference="11" variability="continuous" causality="parameter" start="21.0" />
-	<Float32 name="initial_room_temperature" valueReference="12" variability="continuous" causality="parameter" start="21.0" />	
+	<Float32 name="initial_box_temperature" valueReference="10" variability="fixed" causality="parameter" start="21.0" />
+	<Float32 name="initial_heat_temperature" valueReference="11" variability="fixed" causality="parameter" start="21.0" />
+	<Float32 name="initial_room_temperature" valueReference="12" variability="fixed" causality="parameter" start="21.0" />	
 	
 
 	<Float32 name="C_air" valueReference="100" variability="tunable" causality="parameter" start="267.55929458" />

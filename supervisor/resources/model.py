@@ -144,14 +144,14 @@ class Model:
                 # For now, we use a simpler approach for the supervisor
                 # self.temperature_desired = 35.0
                 # self.lower_bound = 5.0
-                self.heating_time += 0.1 # Updating heating time
+                self.heating_time += 0.01 # Updating heating time
                 # self.heating_gap = 30.0
                 # self.n_samples_period = 40 # For OpenLoop
                 # self.n_samples_heating = 5 # For OpenLoop
                 self.supervisor_state == SupervisorState.Waiting
                 self.next_action_timer = self.wait_til_supervising_timer
             elif (temperature_residual_above_threshold or not heater_safe):
-                self.heating_time -= 0.1
+                self.heating_time -= 0.01
             else:
                 pass
                 
