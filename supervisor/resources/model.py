@@ -55,14 +55,8 @@ class Model:
         self.supervisor_state = SupervisorState.Waiting
         self.setpoint_achievements = 0 # Counter for simple (random) update of the temperature setpoint
         
-        self.clock_a = False
-        self.clock_b = False
-        self.clock_c = False
-        self.clocked_variable_a = 0
-        self.clocked_variable_b = 0
-        self.clocked_variable_c = 0
+        self.supervisor_clock = False
         self.clock_reference_to_interval = {
-            1001: 1.0,
         }
 
 
@@ -70,9 +64,9 @@ class Model:
             999: "time",
             0: "T",
             1: "T_heater",
-            2: "temperature_desired",
+            #2: "temperature_desired",
             3: "lower_bound",
-            4: "heating_time",
+            #4: "heating_time",
             5: "heating_gap",  
             6: "n_samples_period",
             7: "n_samples_heating",
@@ -80,12 +74,9 @@ class Model:
         }
 
         self.clocked_variables = {
-            1001: "clock_a",
-            1002: "clock_b",
-            1003: "clock_c",
-            1100: "clocked_variable_a",
-            1101: "clocked_variable_b",
-            1102: "clocked_variable_c",
+            1001: "supervisor_clock",
+            2: "temperature_desired",
+            4: "heating_time",
         }
 
         self.parameters = {
@@ -123,15 +114,20 @@ class Model:
             communication_step_size: float,
             no_set_fmu_state_prior_to_current_point: bool,
     ):
-        if self.supervisor_state == SupervisorState.Waiting:
-            # assert self.next_action_timer >= 0
-            if self.next_action_timer > 0:
-                self.next_action_timer -= 1
+        event_handling_needed = False
+        terminate_simulation = False
+        early_return = False
+        last_successful_time = current_communication_point + communication_step_size
 
-            if self.next_action_timer == 0:
-                self.supervisor_state = SupervisorState.Listening
-                # self.next_action_timer = -1
-                self.next_action_timer = self.wait_til_supervising_timer
+        # if self.supervisor_state == SupervisorState.Waiting:
+        #     # assert self.next_action_timer >= 0
+        #     if self.next_action_timer > 0:
+        #         self.next_action_timer -= 1
+
+        #     if self.next_action_timer == 0:
+        #         self.supervisor_state = SupervisorState.Listening
+        #         # self.next_action_timer = -1
+        #         self.next_action_timer = self.wait_til_supervising_timer
 
         if self.supervisor_state == SupervisorState.Listening:
             # assert self.next_action_timer < 0
@@ -144,38 +140,36 @@ class Model:
                 # For now, we use a simpler approach for the supervisor
                 # self.temperature_desired = 35.0
                 # self.lower_bound = 5.0
-                self.heating_time += 0.01 # Updating heating time
+                #self.heating_time += 0.01 # Updating heating time
                 # self.heating_gap = 30.0
-                # self.n_samples_period = 40 # For OpenLoop
-                # self.n_samples_heating = 5 # For OpenLoop
-                self.supervisor_state == SupervisorState.Waiting
-                self.next_action_timer = self.wait_til_supervising_timer
+                event_handling_needed = True
+
+                #self.supervisor_state == SupervisorState.Waiting
+                #self.next_action_timer = self.wait_til_supervising_timer
             elif (temperature_residual_above_threshold or not heater_safe):
-                self.heating_time -= 0.01
-            else:
-                pass
-                
+                #self.heating_time -= 0.01
+                event_handling_needed = True
 
             if (self.T >= self.desired_temperature_parameter):
-                self.setpoint_achievements +=1
+                event_handling_needed = True
+                #self.setpoint_achievements +=1
             if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
                 # Updating the setpoint for a random value within +- 1.0 of the current setpoint
-                rand_number = np.random.rand(1)[0] * 2 - 1.0
-                self.desired_temperature_parameter += rand_number
-                self.temperature_desired += rand_number
-                self.setpoint_achievements = 0 # Resetting the counter
-            print(f'heater_safe: {heater_safe}')
-            print(f'heater_underused: {heater_underused}')
-            print(f'temperature_residual_above_threshold: {temperature_residual_above_threshold}')
-            print(f'self.heating_time: {self.heating_time}')
-            print(f'self.setpoint_achievements: {self.setpoint_achievements}')
-        print(f'self.supervisor_state: {self.supervisor_state}')
-        print(f'self.next_action_timer: {self.next_action_timer}')
+                event_handling_needed = True
+                #rand_number = np.random.rand(1)[0] * 2 - 1.0
+                #self.desired_temperature_parameter += rand_number
+                #self.temperature_desired += rand_number
+                #self.setpoint_achievements = 0 # Resetting the counter
+        #     print(f'heater_safe: {heater_safe}')
+        #     print(f'heater_underused: {heater_underused}')
+        #     print(f'temperature_residual_above_threshold: {temperature_residual_above_threshold}')
+        #     print(f'self.heating_time: {self.heating_time}')
+        #     print(f'self.setpoint_achievements: {self.setpoint_achievements}')
+        # print(f'self.supervisor_state: {self.supervisor_state}')
+        # print(f'self.next_action_timer: {self.next_action_timer}')
 
-        event_handling_needed = False
-        terminate_simulation = False
-        early_return = False
-        last_successful_time = current_communication_point + communication_step_size
+        if(event_handling_needed):
+            self.supervisor_clock = True
 
         return (
             Fmi3Status.ok,
@@ -244,16 +238,7 @@ class Model:
         self.setpoint_achievements = 0
         self.next_action_timer = 0
         self.supervisor_state = SupervisorState.Waiting
-        self.clock_a = False
-        self.clock_b = False
-        self.clock_c = False
-        self.clocked_variable_a = 0
-        self.clocked_variable_b = 0
-        self.clocked_variable_c = 0
-        self.clock_reference_to_interval = {
-            1001: 1.0,
-        }
-
+        self.supervisor_clock = False
         return Fmi3Status.ok
 
     def fmi3SerializeFmuState(self):
@@ -278,13 +263,7 @@ class Model:
                 self.setpoint_achievements,
                 self.next_action_timer,
                 self.supervisor_state,
-                self.clock_a,
-                self.clock_b,
-                self.clock_c,
-                self.clocked_variable_a,
-                self.clocked_variable_b,
-                self.clocked_variable_c,
-                self.clock_reference_to_interval,
+                self.supervisor_clock,
             )
         )
         return Fmi3Status.ok, bytes
@@ -309,13 +288,7 @@ class Model:
             setpoint_achievements,
             next_action_timer,
             supervisor_state,
-            clock_a,
-            clock_b,
-            clock_c,
-            clocked_variable_a,
-            clocked_variable_b,
-            clocked_variable_c,
-            clock_reference_to_interval,
+            supervisor_clock,
         ) = pickle.loads(bytes)
         self.state = state
         self.desired_temperature_parameter = desired_temperature_parameter
@@ -335,14 +308,7 @@ class Model:
         self.setpoint_achievements = setpoint_achievements
         self.next_action_timer = next_action_timer
         self.supervisor_state = supervisor_state
-        self.clock_a = clock_a
-        self.clock_b = clock_b
-        self.clock_c = clock_c
-        self.clocked_variable_a = clocked_variable_a
-        self.clocked_variable_b = clocked_variable_b
-        self.clocked_variable_c = clocked_variable_c
-        self.clock_reference_to_interval = clock_reference_to_interval
-
+        self.supervisor_clock = supervisor_clock
         return Fmi3Status.ok
 
     def fmi3GetFloat32(self, value_references):
@@ -502,8 +468,56 @@ class Model:
         terminate_simulation = False
         nominals_continuous_states_changed = False
         values_continuous_states_changed = False
-        next_event_time_defined = True
-        next_event_time = 1.0
+        next_event_time_defined = False
+        next_event_time = 0.0
+
+        if self.supervisor_state == SupervisorState.Waiting:
+            # assert self.next_action_timer >= 0
+            if self.next_action_timer > 0:
+                self.next_action_timer -= 1
+
+            if self.next_action_timer == 0:
+                self.supervisor_state = SupervisorState.Listening
+                # self.next_action_timer = -1
+                self.next_action_timer = self.wait_til_supervising_timer
+
+        if self.supervisor_state == SupervisorState.Listening:
+            # assert self.next_action_timer < 0
+            heater_safe = self.T_heater < self.max_t_heater
+            heater_underused = (self.max_t_heater - self.T_heater) > self.heater_underused_threshold
+            temperature_residual_above_threshold = np.absolute(self.T - self.desired_temperature_parameter) > self.trigger_optimization_threshold
+            if heater_safe and heater_underused and temperature_residual_above_threshold:
+                # Reoptimize controller and then go into waiting
+                # self.controller_optimizer.optimize_controller() # -> This is we are to use the actual incubator optimizer
+                # For now, we use a simpler approach for the supervisor
+                # self.temperature_desired = 35.0
+                # self.lower_bound = 5.0
+                self.heating_time += 0.01 # Updating heating time
+                # self.heating_gap = 30.0
+                # self.n_samples_period = 40 # For OpenLoop
+                # self.n_samples_heating = 5 # For OpenLoop
+                self.supervisor_state == SupervisorState.Waiting
+                self.next_action_timer = self.wait_til_supervising_timer
+            elif (temperature_residual_above_threshold or not heater_safe):
+                self.heating_time -= 0.01                
+
+            if (self.T >= self.desired_temperature_parameter):
+                self.setpoint_achievements +=1
+            if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
+                # Updating the setpoint for a random value within +- 1.0 of the current setpoint
+                rand_number = np.random.rand(1)[0] * 2 - 1.0
+                self.desired_temperature_parameter += rand_number
+                self.temperature_desired += rand_number
+                self.setpoint_achievements = 0 # Resetting the counter
+            print(f'heater_safe: {heater_safe}')
+            print(f'heater_underused: {heater_underused}')
+            print(f'temperature_residual_above_threshold: {temperature_residual_above_threshold}')
+            print(f'self.heating_time: {self.heating_time}')
+            print(f'self.setpoint_achievements: {self.setpoint_achievements}')
+        print(f'self.supervisor_state: {self.supervisor_state}')
+        print(f'self.next_action_timer: {self.next_action_timer}')
+
+        self.supervisor_clock = False
 
 
 
@@ -524,7 +538,8 @@ class Model:
                     return Fmi3Status.error 
                 setattr(self, self.all_references[r], v)
         elif (self.state == FMIState.FMIInitializationModeState):
-            setattr(self, self.all_references[r], v)
+            for r, v in zip(references, values):
+                setattr(self, self.all_references[r], v)
         else:
             for r, v in zip(references, values):
                 if ((self.event_mode_used) and (r in self.tunable_parameters)) or (r in self.clocked_variables) or (r in self.tunable_structural_parameters) or (r in self.parameters):
@@ -536,8 +551,9 @@ class Model:
 
         values = []
         for r in references:
-            if (self.state != FMIState.FMIEventModeState and (r in self.clocked_variables)):
-                return Fmi3Status.error
+            if r in self.clocked_variables:
+                if not ((self.state == FMIState.FMIEventModeState) or (self.state == FMIState.FMIInitializationModeState)):
+                    return Fmi3Status.error
             values.append(getattr(self, self.all_references[r]))
 
         return Fmi3Status.ok, values

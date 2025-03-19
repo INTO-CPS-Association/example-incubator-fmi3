@@ -24,14 +24,12 @@ class Model:
         self.required_intermediate_variables = required_intermediate_variables
         self.state = FMIState.FMIInstantiatedState
 
-        # Replicating ControllerPhysical(OpenLoop) of the incubator without using the fan
+        # Replicating ControllerPhysical of the incubator without using the fan
         # Controller tunable parameters
         # self.temperature_desired = 35.0
         self.lower_bound = 5.0
         # self.heating_time = 20.0
         self.heating_gap = 30.0
-        self.n_samples_period = 40 # For OpenLoop
-        self.n_samples_heating = 5 # For OpenLoop
 
         # Inputs
         self.box_air_temperature = 0.0
@@ -44,30 +42,28 @@ class Model:
 
         # State
         self.controller_state = ControllerState.Cooling
-        # self.controller_state = ControllerState.Initialized # For OpenLoop
         self.next_action_timer = -1.0
         self.cached_heater_on = False
-        self.actuator_effort = 0
+        self.condition = 0.0 # For passing condition from step mode to event mode
 
         self.clock_reference_to_interval = {
-            1001: 1.0,
+            1001: 0.1,
         }
 
         self.reference_to_attribute = {
             999: "time",
             0: "box_air_temperature",
-            1: "heater_ctrl",
-            2: "temperature_desired",
-            3: "heating_time",
+            # 1: "heater_ctrl",
+            # 2: "temperature_desired",
+            # 3: "heating_time",
         }
 
         self.clocked_variables = {
-            1001: "clock_a",
-            1002: "clock_b",
-            1003: "clock_c",
-            1100: "clocked_variable_a",
-            1101: "clocked_variable_b",
-            1102: "clocked_variable_c",
+            1001: "controller_clock",
+            1002: "supervisor_clock",
+            1: "heater_ctrl",
+            2: "temperature_desired",
+            3: "heating_time",
         }
 
         self.parameters = {
@@ -79,8 +75,6 @@ class Model:
             101: "lower_bound",
             # 102: "heating_time",
             103: "heating_gap",
-            104: "n_samples_period",
-            105: "n_samples_heating",
         }
 
         self.tunable_structural_parameters = {
@@ -91,6 +85,8 @@ class Model:
                                **self.tunable_parameters,
                                **self.clocked_variables,
                                **self.reference_to_attribute}
+        
+        print(f'self.all_references: {self.all_references}')
         
         self.all_parameters = {**self.tunable_structural_parameters,
                                **self.parameters,
@@ -106,76 +102,47 @@ class Model:
             communication_step_size: float,
             no_set_fmu_state_prior_to_current_point: bool,
     ):
-        if self.controller_state == ControllerState.Cooling:
-            assert self.cached_heater_on is False
-            if self.box_air_temperature <= self.temperature_desired - self.lower_bound:
-                self.controller_state = ControllerState.Heating
-                self.cached_heater_on = True
-                self.actuator_effort += 1
-                self.next_action_timer = current_communication_point + communication_step_size + self.heating_time
-            
-        if self.controller_state == ControllerState.Heating:
-            assert self.cached_heater_on is True
-            if 0 < self.next_action_timer <= current_communication_point + communication_step_size:
-                self.controller_state = ControllerState.Waiting
-                self.cached_heater_on = False
-                self.actuator_effort += 1
-                self.next_action_timer = current_communication_point + communication_step_size + self.heating_gap
-            elif self.box_air_temperature > self.temperature_desired:
-                self.controller_state = ControllerState.Cooling
-                self.cached_heater_on = False
-                self.actuator_effort += 1
-                self.next_action_timer = -1.0
-            
-        if self.controller_state == ControllerState.Waiting:
-            assert self.cached_heater_on is False
-            if 0 < self.next_action_timer <= current_communication_point + communication_step_size:
-                if self.box_air_temperature <= self.temperature_desired:
-                    self.controller_state = ControllerState.Heating
-                    self.cached_heater_on = True
-                    self.actuator_effort += 1
-                    self.next_action_timer = current_communication_point + communication_step_size + self.heating_time
-                else:
-                    self.controller_state = ControllerState.Cooling
-                    self.cached_heater_on = False
-                    self.next_action_timer = -1.0
-
-        # For OpenLoop
-        # if self.controller_state == ControllerState.Initialized:
-        #     self.cached_heater_on = False
-        #     if 0 < self.n_samples_heating:
-        #         self.controller_state = ControllerState.Heating
-        #         self.next_action_timer = self.n_samples_heating
-        #     else:
-        #         assert self.n_samples_heating == 0
-        #         self.controller_state = ControllerState.Cooling
-        #         self.next_action_timer = self.n_samples_period - self.n_samples_heating
-        #     return
-        # if self.controller_state == ControllerState.Heating:
-        #     assert self.next_action_timer >= 0
-        #     if self.next_action_timer > 0:
-        #         self.cached_heater_on = True
-        #         self.next_action_timer -= 1
-        #     if self.next_action_timer == 0:
-        #         self.controller_state = ControllerState.Cooling
-        #         self.next_action_timer = self.n_samples_period - self.n_samples_heating
-        #     return
-        # if self.controller_state == ControllerState.Cooling:
-        #     assert self.next_action_timer >= 0
-        #     if self.next_action_timer > 0:
-        #         self.cached_heater_on = False
-        #         self.next_action_timer -= 1
-        #     if self.next_action_timer == 0:
-        #         self.controller_state = ControllerState.Heating
-        #         self.next_action_timer = self.n_samples_heating
-        #     return
-        self.heater_ctrl = self.cached_heater_on
-        print(self.heater_ctrl)
-
         event_handling_needed = False
         terminate_simulation = False
         early_return = False
         last_successful_time = current_communication_point + communication_step_size
+
+        self.condition = current_communication_point + communication_step_size
+
+        if self.controller_state == ControllerState.Cooling:
+            assert self.cached_heater_on is False
+            if self.box_air_temperature <= self.temperature_desired - self.lower_bound:
+                #self.controller_state = ControllerState.Heating
+                #self.cached_heater_on = True
+                self.next_action_timer = self.condition + self.heating_time
+            
+        if self.controller_state == ControllerState.Heating:
+            assert self.cached_heater_on is True
+            if 0 < self.next_action_timer <= self.condition:
+                #self.controller_state = ControllerState.Waiting
+                #self.cached_heater_on = False
+                self.next_action_timer = self.condition + self.heating_gap
+            elif self.box_air_temperature > self.temperature_desired:
+                #self.controller_state = ControllerState.Cooling
+                #self.cached_heater_on = False
+                self.next_action_timer = -1.0
+            
+        if self.controller_state == ControllerState.Waiting:
+            assert self.cached_heater_on is False
+            if 0 < self.next_action_timer <= self.condition:
+                if self.box_air_temperature <= self.temperature_desired:
+                    #self.controller_state = ControllerState.Heating
+                    #self.cached_heater_on = True
+                    self.next_action_timer = self.condition + self.heating_time
+                else:
+                    #self.controller_state = ControllerState.Cooling
+                    #self.cached_heater_on = False
+                    self.next_action_timer = -1.0
+
+        #self.heater_ctrl = self.cached_heater_on
+        #print(self.heater_ctrl)
+
+        
 
         return (
             Fmi3Status.ok,
@@ -236,12 +203,11 @@ class Model:
         self.controller_state = ControllerState.Cooling
         self.next_action_timer = -1.0
         self.cached_heater_on = False
-        self.actuator_effort = 0
-        self.n_samples_period = 40
-        self.n_samples_heating = 5
+        self.controller_clock = False
+        self.supervisor_clock = False
         
         self.clock_reference_to_interval = {
-            1001: 1.0,
+            1001: 0.1,
         }
         return Fmi3Status.ok
 
@@ -258,10 +224,9 @@ class Model:
                 self.controller_state,
                 self.next_action_timer,
                 self.cached_heater_on,
-                self.actuator_effort,
                 self.clock_reference_to_interval,
-                self.n_samples_period,
-                self.n_samples_heating,
+                self.controller_clock,
+                self.supervisor_clock,
             )
         )
         return Fmi3Status.ok, bytes
@@ -277,10 +242,9 @@ class Model:
             controller_state,
             next_action_timer,
             cached_heater_on,
-            actuator_effort,
             clock_reference_to_interval,
-            n_samples_period,
-            n_samples_heating,
+            controller_clock,
+            supervisor_clock,
         ) = pickle.loads(bytes)
         self.temperature_desired = temperature_desired
         self.lower_bound = lower_bound
@@ -291,10 +255,9 @@ class Model:
         self.controller_state = controller_state
         self.next_action_timer = next_action_timer
         self.cached_heater_on = cached_heater_on
-        self.actuator_effort = actuator_effort
         self.clock_reference_to_interval = clock_reference_to_interval
-        self.n_samples_period = n_samples_period
-        self.n_samples_heating = n_samples_heating
+        self.controller_clock = controller_clock
+        self.supervisor_clock = supervisor_clock
         return Fmi3Status.ok
 
     def fmi3GetFloat32(self, value_references):
@@ -455,9 +418,47 @@ class Model:
         nominals_continuous_states_changed = False
         values_continuous_states_changed = False
         next_event_time_defined = True
-        next_event_time = 1.0
+        next_event_time = 0.1
 
+            
 
+        if self.controller_state == ControllerState.Cooling:
+            assert self.cached_heater_on is False
+            if self.box_air_temperature <= self.temperature_desired - self.lower_bound:
+                self.controller_state = ControllerState.Heating
+                self.cached_heater_on = True
+                #self.next_action_timer = current_communication_point + communication_step_size + self.heating_time
+            
+        if self.controller_state == ControllerState.Heating:
+            assert self.cached_heater_on is True
+            if 0 < self.next_action_timer <= self.condition:
+                self.controller_state = ControllerState.Waiting
+                self.cached_heater_on = False
+                #self.next_action_timer = current_communication_point + communication_step_size + self.heating_gap
+            elif self.box_air_temperature > self.temperature_desired:
+                self.controller_state = ControllerState.Cooling
+                self.cached_heater_on = False
+                #self.next_action_timer = -1.0
+            
+        if self.controller_state == ControllerState.Waiting:
+            assert self.cached_heater_on is False
+            if 0 < self.next_action_timer <= self.condition:
+                if self.box_air_temperature <= self.temperature_desired:
+                    self.controller_state = ControllerState.Heating
+                    self.cached_heater_on = True
+                    #self.next_action_timer = current_communication_point + communication_step_size + self.heating_time
+                else:
+                    self.controller_state = ControllerState.Cooling
+                    self.cached_heater_on = False
+                    #self.next_action_timer = -1.0
+
+        # Resetting the clock
+        if (self.controller_clock):
+            self.controller_clock = False
+
+        # Setting outputs
+        self.heater_ctrl = self.cached_heater_on
+        print(self.heater_ctrl)
 
         return (status, discrete_states_need_update, terminate_simulation, nominals_continuous_states_changed,
                 values_continuous_states_changed, next_event_time_defined, next_event_time)
@@ -476,7 +477,8 @@ class Model:
                     return Fmi3Status.error 
                 setattr(self, self.all_references[r], v)
         elif (self.state == FMIState.FMIInitializationModeState):
-            setattr(self, self.all_references[r], v)
+            for r, v in zip(references, values):
+                setattr(self, self.all_references[r], v)
         else:
             for r, v in zip(references, values):
                 if ((self.event_mode_used) and (r in self.tunable_parameters)) or (r in self.clocked_variables) or (r in self.tunable_structural_parameters) or (r in self.parameters):
@@ -485,11 +487,12 @@ class Model:
         return Fmi3Status.ok
 
     def _get_value(self, references):
-
+        
         values = []
         for r in references:
-            if (self.state != FMIState.FMIEventModeState and (r in self.clocked_variables)):
-                return Fmi3Status.error
+            if r in self.clocked_variables:
+                if not ((self.state == FMIState.FMIEventModeState) or (self.state == FMIState.FMIInitializationModeState)):
+                    return Fmi3Status.error
             values.append(getattr(self, self.all_references[r]))
 
         return Fmi3Status.ok, values

@@ -418,6 +418,9 @@ class Model:
                 if (r in self.reference_to_attribute) or (r in self.tunable_structural_parameters):
                     return Fmi3Status.error 
                 setattr(self, self.all_references[r], v)
+        elif (self.state == FMIState.FMIInitializationModeState):
+            for r, v in zip(references, values):
+                setattr(self, self.all_references[r], v)
         else:
             for r, v in zip(references, values):
                 if ((self.event_mode_used) and (r in self.tunable_parameters)) or (r in self.clocked_variables) or (r in self.tunable_structural_parameters) or (r in self.parameters):
@@ -426,11 +429,12 @@ class Model:
         return Fmi3Status.ok
 
     def _get_value(self, references):
-
+        
         values = []
         for r in references:
-            if (self.state != FMIState.FMIEventModeState and (r in self.clocked_variables)):
-                return Fmi3Status.error
+            if r in self.clocked_variables:
+                if not ((self.state == FMIState.FMIEventModeState) or (self.state == FMIState.FMIInitializationModeState)):
+                    return Fmi3Status.error
             values.append(getattr(self, self.all_references[r]))
 
         return Fmi3Status.ok, values

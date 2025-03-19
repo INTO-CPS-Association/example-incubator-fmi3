@@ -2,12 +2,42 @@
 from fmpy import read_model_description, extract
 from fmpy.fmi3 import FMU3Slave,fmi3OK, fmi3ValueReference, fmi3Binary, fmi3Error
 import shutil
-import sys
 import logging
 import time
+import threading
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
+
+# Co-simulation parameters
+end_simulation_time = 10.0
+start_simulation_time = 0.0
+sim_time = start_simulation_time # Holds the current time of the simulation
+step_size = 0.5
+simulation_program_delay = True # Set to True for real-time simulation
+
+class ThreadedTimer:
+    def __init__(self, interval, function, *args, **kwargs):
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.stop_event = threading.Event()
+        self.thread = threading.Thread(target=self._run)
+        
+    def _run(self):
+        while not self.stop_event.is_set():
+            self.function(*self.args, **self.kwargs)
+            if simulation_program_delay:
+                time.sleep(self.interval)
+        
+    def start(self):
+        self.thread.start()
+        
+    def stop(self):
+        self.stop_event.set()
+        self.thread.join()
 
 plant_fmu_filename = "plant.fmu"
 controller_fmu_filename = "controller.fmu"
@@ -46,6 +76,61 @@ supervisor_fmu = FMU3Slave(guid=model_description_supervisor.guid,
                 modelIdentifier=model_description_supervisor.coSimulation.modelIdentifier,
                 instanceName='supervisor')
 
+# Connections for input/output ports
+timed_connections = {
+		"plant.T": [
+			"controller.box_air_temperature",
+            "supervisor.T"
+		],
+		"plant.T_heater": [
+			"supervisor.T_heater"
+		]
+		# "controller.heater_ctrl": [
+		# 	"plant.in_heater_on"
+		# ],
+		# "supervisor.heating_time": [
+		# 	"controller.heating_time"
+		# ],
+		# "supervisor.temperature_desired": [
+		# 	"controller.temperature_desired"
+		# ],
+        # "supervisor.supervisor_clock": [
+		# 	"controller.supervisor_clock"
+		# ]
+	}
+
+clocked_connections = {
+		# "plant.T": [
+		# 	"controller.box_air_temperature",
+        #     "supervisor.T"
+		# ],
+		# "plant.T_heater": [
+		# 	"supervisor.T_heater"
+		# ],
+		"controller.heater_ctrl": [
+			"plant.in_heater_on"
+		],
+		"supervisor.heating_time": [
+			"controller.heating_time"
+		],
+		"supervisor.temperature_desired": [
+			"controller.temperature_desired"
+		],
+        "supervisor.supervisor_clock": [
+			"controller.supervisor_clock"
+		]
+	}
+
+all_connections = {**timed_connections,**clocked_connections}
+
+# Outputs for logging
+T = 0.0
+T_heater = 0.0
+heater_ctrl = False
+temperature_desired = 0.0
+heating_time = 0.0
+
+
 # Instantiate
 plant_fmu.instantiate(visible=False,
                     loggingOn=False,
@@ -71,43 +156,15 @@ plant_fmu.enterInitializationMode()
 controller_fmu.enterInitializationMode()
 supervisor_fmu.enterInitializationMode()
 
-# Exit initialization mode
-plant_fmu.exitInitializationMode()
-controller_fmu.exitInitializationMode()
-supervisor_fmu.exitInitializationMode()
+# Updating outputs to initial values
+heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
+temperature_desired = supervisor_fmu.getFloat32([vrs_supervisor["temperature_desired"]])[0]
+heating_time = supervisor_fmu.getFloat32([vrs_supervisor["heating_time"]])[0]
+T = plant_fmu.getFloat32([vrs_plant["T"]])[0]
+T_heater = plant_fmu.getFloat32([vrs_plant["T_heater"]])[0]
 
-
-# Co-simulation parameters
-end_simulation_time = 10000.0
-start_simulation_time = 0.0
-sim_time = start_simulation_time # Holds the current time of the simulation
-step_size = 0.5
-simulation_program_delay = False # Set to True for real-time simulation
-
-# Connections for input/output ports
-connections = {
-		"plant.T": [
-			"controller.box_air_temperature",
-            "supervisor.T"
-		],
-		"plant.T_heater": [
-			"supervisor.T_heater"
-		],
-		"controller.heater_ctrl": [
-			"plant.in_heater_on"
-		],
-		"supervisor.heating_time": [
-			"controller.heating_time"
-		],
-		"supervisor.temperature_desired": [
-			"controller.temperature_desired"
-		]
-	}
-
-# Co-simulation loop (loose coupling)
-logger.info(f"Initializing co-simulation for {end_simulation_time} seconds, with step size {step_size}, and real-time {simulation_program_delay}")
-while (sim_time < end_simulation_time):
-    for connection_src,connection_sink in connections.items():
+# Get and set initial values
+for connection_src,connection_sink in all_connections.items():
         connection_src_array = connection_src.split(".")
         # No need to check datatype because it's uniform for this example (only 1 known boolean)
         # Get the current output
@@ -118,6 +175,8 @@ while (sim_time < end_simulation_time):
             o = controller_fmu.getBoolean([vrs_controller[connection_src_array[1]]])[0]
         elif connection_src_array[0] == "supervisor":
             o = supervisor_fmu.getFloat32([vrs_supervisor[connection_src_array[1]]])[0]
+        
+        logger.info(f'output: {o}')
         
         # Set the inputs
         for sink in connection_sink:
@@ -130,32 +189,172 @@ while (sim_time < end_simulation_time):
             elif sink_array[0] == "supervisor":
                 supervisor_fmu.setFloat32([vrs_supervisor[sink_array[1]]],[o])
 
+# Get periodic clock from controller FMU
+controller_clock_intervals,controller_clock_qualifiers = controller_fmu.getIntervalDecimal([vrs_controller["controller_clock"]])
+controller_clock_interval = controller_clock_intervals[0]
+print(f'controller_clock_interval: {controller_clock_interval}')
+
+# Variable to store time event
+step_mode = False
+controller_time_event = False
+
+
+# Exit initialization mode
+plant_fmu.exitInitializationMode()
+controller_fmu.exitInitializationMode()
+supervisor_fmu.exitInitializationMode()
+
+# Initialize periodic timer for controller clock
+def on_tick():
+    global controller_time_event
+    print("controller on tick")
+    controller_time_event = True
+    # controller_fmu.enterEventMode()
+    # controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
+    # if not step_mode:
+    #     controller_fmu.updateDiscreteStates()
+    # controller_fmu.enterStepMode()
+
+#controller_clock_timer = ThreadedTimer(controller_clock_interval, on_tick)
+controller_clock_timer = ThreadedTimer(1.0, on_tick)
+controller_clock_timer.start()
+
+# Co-simulation loop (loose coupling)
+logger.info(f"Initializing co-simulation for {end_simulation_time} seconds, with step size {step_size}, and real-time {simulation_program_delay}")
+while (sim_time < end_simulation_time):
+    step_mode = True
+    for connection_src,connection_sink in timed_connections.items():
+        connection_src_array = connection_src.split(".")
+        # No need to check datatype because it's uniform for this example (only 1 known boolean)
+        # Get the current output
+        logger.info(f'connection_src_array (timed): {connection_src_array}')
+        if connection_src_array[0] == "plant":
+            o = plant_fmu.getFloat32([vrs_plant[connection_src_array[1]]])[0]
+        elif connection_src_array[0] == "controller":
+            o = controller_fmu.getBoolean([vrs_controller[connection_src_array[1]]])[0]
+        elif connection_src_array[0] == "supervisor":
+            o = supervisor_fmu.getFloat32([vrs_supervisor[connection_src_array[1]]])[0]
+        
+        # Set the inputs
+        for sink in connection_sink:
+            sink_array = sink.split(".")
+            logger.info(f'sink_array (timed): {sink_array}')
+            if sink_array[0] == "plant":
+                plant_fmu.setBoolean([vrs_plant[sink_array[1]]],[o])
+            elif sink_array[0] == "controller":
+                controller_fmu.setFloat32([vrs_controller[sink_array[1]]],[o])
+            elif sink_array[0] == "supervisor":
+                supervisor_fmu.setFloat32([vrs_supervisor[sink_array[1]]],[o])
+
     # Step all FMUs
     logger.info(f"Doing a step of size {step_size} at time {sim_time}")
-    plant_fmu.doStep(sim_time, step_size)
-    controller_fmu.doStep(sim_time, step_size)
-    supervisor_fmu.doStep(sim_time, step_size)
+    plant_event_needed,plant_terminate_sim,plant_early_return,plant_last_successful_time = plant_fmu.doStep(sim_time, step_size)
+    controller_event_needed,controller_terminate_sim,controller_early_return,controller_last_successful_time = controller_fmu.doStep(sim_time, step_size)
+    supervisor_event_needed,supervisor_terminate_sim,supervisor_early_return,supervisor_last_successful_time = supervisor_fmu.doStep(sim_time, step_size)
 
+    # Checking if event mode is needed
+    if (controller_time_event and not supervisor_event_needed):
+        logger.info("Controller time event ONLY")
+        # Only controller
+        controller_fmu.enterEventMode()
+        controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
+        controller_time_event = False
 
-    # Read outputs for logging
+        # Get current outputs and set inputs
+        o = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
+        plant_fmu.setBoolean([vrs_plant["in_heater_on"]],[o])
+
+        # Update discrete states
+        (controller_discrete_states_need_update,terminate_simulation,
+        controller_nominals_of_continuous_states_changed,
+        controller_values_of_continuous_states_changed,
+        controller_next_event_time_defined,
+        controller_next_event_time) = controller_fmu.updateDiscreteStates()
+
+        # Read clocked outputs for logging
+        heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
+        # Set continuous-time inputs
+        # plant_fmu.setBoolean([vrs_plant["in_heater_on"]],[heater_ctrl]) # Double-check if we need to update after stepE
+        
+        # Get back to step mode
+        controller_fmu.enterStepMode()
+
+    elif (plant_event_needed or controller_event_needed or supervisor_event_needed or controller_time_event):
+        # If controller and/or supervisor
+        logger.info("Controller time event or supervisor event")
+
+        # Set controller and supervisor into event mode (plant doesn't work in event mode)
+        controller_fmu.enterEventMode()
+        supervisor_fmu.enterEventMode()
+
+        if controller_time_event:
+            controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
+            controller_time_event = False
+            
+
+        supervisor_clock = supervisor_fmu.getClock([vrs_supervisor["supervisor_clock"]])[0]
+        controller_clock = controller_fmu.getClock([vrs_controller["controller_clock"]])[0]
+
+        # Get and set clocked variables
+        for connection_src,connection_sink in clocked_connections.items():
+            connection_src_array = connection_src.split(".")
+            # No need to check datatype because it's uniform for this example (only 1 known boolean)
+            # Get the current output
+            logger.info(f'connection_src_array (clocked): {connection_src_array}')
+            if connection_src_array[0] == "controller" and controller_clock:
+                o = controller_fmu.getBoolean([vrs_controller[connection_src_array[1]]])[0]
+            elif connection_src_array[0] == "supervisor" and supervisor_clock:
+                o = supervisor_fmu.getFloat32([vrs_supervisor[connection_src_array[1]]])[0]
+            
+            # Set the inputs
+            for sink in connection_sink:
+                sink_array = sink.split(".")
+                logger.info(f'sink_array (clocked): {sink_array}')
+                if sink_array[0] == "plant" and controller_clock:
+                    plant_fmu.setBoolean([vrs_plant[sink_array[1]]],[o])
+                elif sink_array[0] == "controller" and supervisor_clock:
+                    controller_fmu.setFloat32([vrs_controller[sink_array[1]]],[o])
+
+        # Update discrete states
+        (controller_discrete_states_need_update,terminate_simulation,
+        controller_nominals_of_continuous_states_changed,
+        controller_values_of_continuous_states_changed,
+        controller_next_event_time_defined,
+        controller_next_event_time) = controller_fmu.updateDiscreteStates()
+        
+        (supervisor_discrete_states_need_update,terminate_simulation,
+        supervisor_nominals_of_continuous_states_changed,
+        supervisor_values_of_continuous_states_changed,
+        supervisor_next_event_time_defined,
+        supervisor_next_event_time) = supervisor_fmu.updateDiscreteStates()
+
+        # Read clocked outputs for logging
+        heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
+        temperature_desired = supervisor_fmu.getFloat32([vrs_supervisor["temperature_desired"]])[0]
+        heating_time = supervisor_fmu.getFloat32([vrs_supervisor["heating_time"]])[0]
+
+        # Get back to step mode
+        controller_fmu.enterStepMode()
+        supervisor_fmu.enterStepMode()
+
+    # Read timed outputs for logging
     T = plant_fmu.getFloat32([vrs_plant["T"]])[0]
     T_heater = plant_fmu.getFloat32([vrs_plant["T_heater"]])[0]
-    heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
-    temperature_desired = supervisor_fmu.getFloat32([vrs_supervisor["temperature_desired"]])[0]
-    heating_time = supervisor_fmu.getFloat32([vrs_supervisor["heating_time"]])[0]
 
     logger.info(f"Plant.T :  {T}")
     logger.info(f"Plant.T_heater :  {T_heater}")
     logger.info(f"Controller.heater_ctrl :  {heater_ctrl}")
     logger.info(f"Supervisor.temperature_desired :  {temperature_desired}")
-    logger.info(f"Supervisor.heating_time :  {heating_time}")        
+    logger.info(f"Supervisor.heating_time :  {heating_time}")   
 
-
+    sim_time += step_size
+    step_mode = False
     if (simulation_program_delay):
         time.sleep(step_size)
-    sim_time += step_size
+    
 
 # Terminate instances
+controller_clock_timer.stop()
 plant_fmu.terminate()
 plant_fmu.freeInstance()
 controller_fmu.terminate()
