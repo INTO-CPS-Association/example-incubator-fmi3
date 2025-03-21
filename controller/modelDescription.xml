@@ -22,12 +22,12 @@
 	<Float32 name="lower_bound" valueReference="101" variability="tunable" causality="parameter" start="5.0" />
 	<!-- <Float32 name="heating_time" valueReference="102" variability="tunable" causality="parameter" start="20.0" /> -->
 	
-	<Float32 name="heating_gap" valueReference="103" variability="tunable" causality="parameter" start="30.0" />
+	<Float32 name="heating_gap" valueReference="103" variability="tunable" causality="parameter" start="20.0" />
 	<!-- <UInt32 name="n_samples_period" valueReference="104" variability="tunable" causality="parameter" start="40" />
 	<UInt32 name="n_samples_heating" valueReference="105" variability="tunable" causality="parameter" start="5" /> -->
 
 
-	<Clock name="controller_clock" valueReference="1001" causality="input" intervalVariability="constant" intervalDecimal="0.1"/>
+	<Clock name="controller_clock" valueReference="1001" causality="input" intervalVariability="constant" intervalDecimal="1.0"/>
 	<Clock name="supervisor_clock" valueReference="1002" causality="input" intervalVariability="triggered"/>
 
 

@@ -100,9 +100,7 @@ class Model:
         total_power_heater = power_in - power_transfer_heat
         
 
-        #der_T = lambda : (1.0 / self.C_air) * total_power_box # Derivative of T
         der_T = lambda t,y: (1.0 / self.C_air) * y # Derivative of T
-        #der_T_heater = lambda: (1.0 / self.C_heater) * total_power_heater # Derivative of T_heater
         der_T_heater = lambda t,y: (1.0 / self.C_heater) * y # Derivative of T_heater
 
         # Runge-Kutta 45
@@ -111,14 +109,12 @@ class Model:
         k3_T = der_T(current_communication_point+(communication_step_size/2), total_power_box+communication_step_size*(k2_T/2))
         k4_T = der_T(current_communication_point+communication_step_size, total_power_box+communication_step_size*k3_T)
         self.T += communication_step_size*(k1_T + 2*k2_T + 2*k3_T + k4_T)/6
-        #print(self.T)
 
         k1_T_heater = der_T_heater(current_communication_point, total_power_heater)
         k2_T_heater = der_T_heater(current_communication_point+(communication_step_size/2), total_power_heater+communication_step_size*(k1_T_heater/2))
         k3_T_heater = der_T_heater(current_communication_point+(communication_step_size/2), total_power_heater+communication_step_size*(k2_T_heater/2))
         k4_T_heater = der_T_heater(current_communication_point+communication_step_size, total_power_heater+communication_step_size*k3_T_heater)
         self.T_heater += communication_step_size*(k1_T_heater + 2*k2_T_heater + 2*k3_T_heater + k4_T_heater)/6
-        #print(self.T_heater)
 
         event_handling_needed = False
         terminate_simulation = False

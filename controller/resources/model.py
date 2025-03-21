@@ -26,10 +26,9 @@ class Model:
 
         # Replicating ControllerPhysical of the incubator without using the fan
         # Controller tunable parameters
-        # self.temperature_desired = 35.0
         self.lower_bound = 5.0
         # self.heating_time = 20.0
-        self.heating_gap = 30.0
+        self.heating_gap = 20.0
 
         # Inputs
         self.box_air_temperature = 0.0
@@ -47,7 +46,7 @@ class Model:
         self.condition = 0.0 # For passing condition from step mode to event mode
 
         self.clock_reference_to_interval = {
-            1001: 0.1,
+            1001: 1.0,
         }
 
         self.reference_to_attribute = {
@@ -86,8 +85,6 @@ class Model:
                                **self.clocked_variables,
                                **self.reference_to_attribute}
         
-        print(f'self.all_references: {self.all_references}')
-        
         self.all_parameters = {**self.tunable_structural_parameters,
                                **self.parameters,
                                **self.tunable_parameters}
@@ -112,38 +109,23 @@ class Model:
         if self.controller_state == ControllerState.Cooling:
             assert self.cached_heater_on is False
             if self.box_air_temperature <= self.temperature_desired - self.lower_bound:
-                #self.controller_state = ControllerState.Heating
-                #self.cached_heater_on = True
                 self.next_action_timer = self.condition + self.heating_time
             
         if self.controller_state == ControllerState.Heating:
             assert self.cached_heater_on is True
             if 0 < self.next_action_timer <= self.condition:
-                #self.controller_state = ControllerState.Waiting
-                #self.cached_heater_on = False
                 self.next_action_timer = self.condition + self.heating_gap
             elif self.box_air_temperature > self.temperature_desired:
-                #self.controller_state = ControllerState.Cooling
-                #self.cached_heater_on = False
                 self.next_action_timer = -1.0
             
         if self.controller_state == ControllerState.Waiting:
             assert self.cached_heater_on is False
             if 0 < self.next_action_timer <= self.condition:
                 if self.box_air_temperature <= self.temperature_desired:
-                    #self.controller_state = ControllerState.Heating
-                    #self.cached_heater_on = True
                     self.next_action_timer = self.condition + self.heating_time
                 else:
-                    #self.controller_state = ControllerState.Cooling
-                    #self.cached_heater_on = False
                     self.next_action_timer = -1.0
-
-        #self.heater_ctrl = self.cached_heater_on
-        #print(self.heater_ctrl)
-
-        
-
+     
         return (
             Fmi3Status.ok,
             event_handling_needed,
@@ -197,7 +179,7 @@ class Model:
         self.temperature_desired = 35.0
         self.lower_bound = 5.0
         self.heating_time = 20.0
-        self.heating_gap = 30.0
+        self.heating_gap = 20.0
         self.box_air_temperature = 0.0
         self.heater_ctrl = False
         self.controller_state = ControllerState.Cooling
@@ -207,7 +189,7 @@ class Model:
         self.supervisor_clock = False
         
         self.clock_reference_to_interval = {
-            1001: 0.1,
+            1001: 1.0,
         }
         return Fmi3Status.ok
 
@@ -418,9 +400,7 @@ class Model:
         nominals_continuous_states_changed = False
         values_continuous_states_changed = False
         next_event_time_defined = True
-        next_event_time = 0.1
-
-            
+        next_event_time = 1.0            
 
         if self.controller_state == ControllerState.Cooling:
             assert self.cached_heater_on is False
@@ -458,7 +438,6 @@ class Model:
 
         # Setting outputs
         self.heater_ctrl = self.cached_heater_on
-        print(self.heater_ctrl)
 
         return (status, discrete_states_need_update, terminate_simulation, nominals_continuous_states_changed,
                 values_continuous_states_changed, next_event_time_defined, next_event_time)

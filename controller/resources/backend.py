@@ -66,7 +66,7 @@ if __name__ == "__main__":
         group = command.WhichOneof("command")
         data = getattr(command, command.WhichOneof("command"))
 
-        logger.info(f"Command: {command}")
+        #logger.info(f"Command: {command}")
 
         # ================= FMI3 =================
         if group == "Fmi3InstantiateModelExchange":
@@ -281,6 +281,6 @@ if __name__ == "__main__":
             logger.error(f"unrecognized command '{group}' received, shutting down")
             sys.exit(-1)
 
-        logger.info(f"Result: {result}")
+        #logger.info(f"Result: {result}")
         state = result.SerializeToString()
         socket.send(state)

@@ -1,6 +1,7 @@
 colorama
 coloredlogs
 FMPy
+pandas
 protobuf==5.27.3
 pyzmq
 toml

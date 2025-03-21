@@ -35,7 +35,7 @@ class Model:
         self.max_t_heater = 60.0
         self.trigger_optimization_threshold = 10.0
         self.heater_underused_threshold = 10.0
-        self.wait_til_supervising_timer = 1
+        self.wait_til_supervising_timer = 100
         self.setpoint_achievements_parameter = 3
 
         # Inputs
@@ -46,9 +46,7 @@ class Model:
         self.temperature_desired = 35.0
         self.lower_bound = 5.0
         self.heating_time = 20.0
-        self.heating_gap = 30.0
-        self.n_samples_period = 40 # For OpenLoop
-        self.n_samples_heating = 5 # For OpenLoop
+        self.heating_gap = 20.0
 
         # State
         self.next_action_timer = self.wait_til_supervising_timer
@@ -68,15 +66,14 @@ class Model:
             3: "lower_bound",
             #4: "heating_time",
             5: "heating_gap",  
-            6: "n_samples_period",
-            7: "n_samples_heating",
-            8: "setpoint_achievements",
+            
         }
 
         self.clocked_variables = {
             1001: "supervisor_clock",
             2: "temperature_desired",
             4: "heating_time",
+            8: "setpoint_achievements",
         }
 
         self.parameters = {
@@ -119,54 +116,26 @@ class Model:
         early_return = False
         last_successful_time = current_communication_point + communication_step_size
 
-        # if self.supervisor_state == SupervisorState.Waiting:
-        #     # assert self.next_action_timer >= 0
-        #     if self.next_action_timer > 0:
-        #         self.next_action_timer -= 1
+        if self.supervisor_state == SupervisorState.Waiting:
+            if self.next_action_timer > 0:
+                event_handling_needed = True
 
-        #     if self.next_action_timer == 0:
-        #         self.supervisor_state = SupervisorState.Listening
-        #         # self.next_action_timer = -1
-        #         self.next_action_timer = self.wait_til_supervising_timer
+            if self.next_action_timer == 0:
+                event_handling_needed = True
 
         if self.supervisor_state == SupervisorState.Listening:
-            # assert self.next_action_timer < 0
             heater_safe = self.T_heater < self.max_t_heater
             heater_underused = (self.max_t_heater - self.T_heater) > self.heater_underused_threshold
             temperature_residual_above_threshold = np.absolute(self.T - self.desired_temperature_parameter) > self.trigger_optimization_threshold
             if heater_safe and heater_underused and temperature_residual_above_threshold:
-                # Reoptimize controller and then go into waiting
-                # self.controller_optimizer.optimize_controller() # -> This is we are to use the actual incubator optimizer
-                # For now, we use a simpler approach for the supervisor
-                # self.temperature_desired = 35.0
-                # self.lower_bound = 5.0
-                #self.heating_time += 0.01 # Updating heating time
-                # self.heating_gap = 30.0
-                event_handling_needed = True
-
-                #self.supervisor_state == SupervisorState.Waiting
-                #self.next_action_timer = self.wait_til_supervising_timer
-            elif (temperature_residual_above_threshold or not heater_safe):
-                #self.heating_time -= 0.01
                 event_handling_needed = True
 
             if (self.T >= self.desired_temperature_parameter):
                 event_handling_needed = True
-                #self.setpoint_achievements +=1
+
             if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
-                # Updating the setpoint for a random value within +- 1.0 of the current setpoint
                 event_handling_needed = True
-                #rand_number = np.random.rand(1)[0] * 2 - 1.0
-                #self.desired_temperature_parameter += rand_number
-                #self.temperature_desired += rand_number
-                #self.setpoint_achievements = 0 # Resetting the counter
-        #     print(f'heater_safe: {heater_safe}')
-        #     print(f'heater_underused: {heater_underused}')
-        #     print(f'temperature_residual_above_threshold: {temperature_residual_above_threshold}')
-        #     print(f'self.heating_time: {self.heating_time}')
-        #     print(f'self.setpoint_achievements: {self.setpoint_achievements}')
-        # print(f'self.supervisor_state: {self.supervisor_state}')
-        # print(f'self.next_action_timer: {self.next_action_timer}')
+
 
         if(event_handling_needed):
             self.supervisor_clock = True
@@ -192,6 +161,7 @@ class Model:
 
     def fmi3ExitInitializationMode(self):
         self.state = FMIState.FMIEventModeState if self.event_mode_used else FMIState.FMIStepModeState
+        self.next_action_timer = self.wait_til_supervising_timer
         return Fmi3Status.ok
 
     def fmi3EnterEventMode(self):
@@ -221,7 +191,7 @@ class Model:
 
     def fmi3Reset(self):
         self.state = FMIState.FMIInstantiatedState
-        self.desired_temperature_parameter = 0.0
+        self.desired_temperature_parameter = 35.0
         self.max_t_heater = 0.0
         self.trigger_optimization_threshold = 0.0
         self.heater_underused_threshold = 0.0
@@ -229,14 +199,12 @@ class Model:
         self.setpoint_achievements_parameter = 3
         self.T = 0.0
         self.T_heater = 0.0 
-        self.temperature_desired = 35.0
+        self.temperature_desired = self.desired_temperature_parameter
         self.lower_bound = 5.0
         self.heating_time = 20.0
-        self.heating_gap = 30.0
-        self.n_samples_period = 40
-        self.n_samples_heating = 5
+        self.heating_gap = 20.0
         self.setpoint_achievements = 0
-        self.next_action_timer = 0
+        self.next_action_timer = self.wait_til_supervising_timer
         self.supervisor_state = SupervisorState.Waiting
         self.supervisor_clock = False
         return Fmi3Status.ok
@@ -258,8 +226,6 @@ class Model:
                 self.lower_bound,
                 self.heating_time,
                 self.heating_gap,
-                self.n_samples_period,
-                self.n_samples_heating,
                 self.setpoint_achievements,
                 self.next_action_timer,
                 self.supervisor_state,
@@ -283,8 +249,6 @@ class Model:
             lower_bound,
             heating_time,
             heating_gap,
-            n_samples_period,
-            n_samples_heating,
             setpoint_achievements,
             next_action_timer,
             supervisor_state,
@@ -303,8 +267,6 @@ class Model:
         self.lower_bound = lower_bound
         self.heating_time = heating_time
         self.heating_gap = heating_gap
-        self.n_samples_period = n_samples_period
-        self.n_samples_heating = n_samples_heating
         self.setpoint_achievements = setpoint_achievements
         self.next_action_timer = next_action_timer
         self.supervisor_state = supervisor_state
@@ -478,8 +440,7 @@ class Model:
 
             if self.next_action_timer == 0:
                 self.supervisor_state = SupervisorState.Listening
-                # self.next_action_timer = -1
-                self.next_action_timer = self.wait_til_supervising_timer
+                self.next_action_timer = -1
 
         if self.supervisor_state == SupervisorState.Listening:
             # assert self.next_action_timer < 0
@@ -492,14 +453,11 @@ class Model:
                 # For now, we use a simpler approach for the supervisor
                 # self.temperature_desired = 35.0
                 # self.lower_bound = 5.0
-                self.heating_time += 0.01 # Updating heating time
-                # self.heating_gap = 30.0
-                # self.n_samples_period = 40 # For OpenLoop
-                # self.n_samples_heating = 5 # For OpenLoop
+                # self.heating_gap = 20.0                
+                rand_number = np.random.rand(1)[0] * 0.1 - 0.05
+                self.heating_time += rand_number # Updating heating time                
                 self.supervisor_state == SupervisorState.Waiting
                 self.next_action_timer = self.wait_til_supervising_timer
-            elif (temperature_residual_above_threshold or not heater_safe):
-                self.heating_time -= 0.01                
 
             if (self.T >= self.desired_temperature_parameter):
                 self.setpoint_achievements +=1
@@ -509,13 +467,6 @@ class Model:
                 self.desired_temperature_parameter += rand_number
                 self.temperature_desired += rand_number
                 self.setpoint_achievements = 0 # Resetting the counter
-            print(f'heater_safe: {heater_safe}')
-            print(f'heater_underused: {heater_underused}')
-            print(f'temperature_residual_above_threshold: {temperature_residual_above_threshold}')
-            print(f'self.heating_time: {self.heating_time}')
-            print(f'self.setpoint_achievements: {self.setpoint_achievements}')
-        print(f'self.supervisor_state: {self.supervisor_state}')
-        print(f'self.next_action_timer: {self.next_action_timer}')
 
         self.supervisor_clock = False
 

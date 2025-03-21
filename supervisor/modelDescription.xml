@@ -21,9 +21,9 @@
 	<Float32 name="heating_time" valueReference="4" variability="continuous" causality="output" initial="calculated" clocks="1001" />
 	<Float32 name="heating_gap" valueReference="5" variability="continuous" causality="output" initial="calculated" />
 	
-	<UInt32 name="n_samples_period" valueReference="6" variability="discrete" causality="output" initial="calculated" />
-	<UInt32 name="n_samples_heating" valueReference="7" variability="discrete" causality="output" initial="calculated" />
-	<UInt32 name="setpoint_achievements" valueReference="8" variability="discrete" causality="output" initial="calculated" />
+	<!-- <UInt32 name="n_samples_period" valueReference="6" variability="discrete" causality="output" initial="calculated" />
+	<UInt32 name="n_samples_heating" valueReference="7" variability="discrete" causality="output" initial="calculated" /> -->
+	<UInt32 name="setpoint_achievements" valueReference="8" variability="discrete" causality="output" initial="calculated" clocks="1001"/>
 
 
 	<Float32 name="desired_temperature_parameter" valueReference="100" variability="tunable" causality="parameter" start="35.0" />
@@ -42,16 +42,16 @@
 	<Output valueReference="3" dependencies="0 1" />
 	<Output valueReference="4" dependencies="0 1 1001" />
 	<Output valueReference="5" dependencies="0 1" />
-	<Output valueReference="6" dependencies="0 1" />
-	<Output valueReference="7" dependencies="0 1" />
-	<Output valueReference="8" dependencies="0 1" />
+	<!-- <Output valueReference="6" dependencies="0 1" />
+	<Output valueReference="7" dependencies="0 1" /> -->
+	<Output valueReference="8" dependencies="0 1 1001" />
 
 	<InitialUnknown valueReference="2" dependencies="0 1 1001" />
 	<InitialUnknown valueReference="3" dependencies="0 1" />
 	<InitialUnknown valueReference="4" dependencies="0 1 1001" />
 	<InitialUnknown valueReference="5" dependencies="0 1" />
-	<InitialUnknown valueReference="6" dependencies="0 1" />
-	<InitialUnknown valueReference="7" dependencies="0 1" />
-	<InitialUnknown valueReference="8" dependencies="0 1" />
+	<!-- <InitialUnknown valueReference="6" dependencies="0 1" />
+	<InitialUnknown valueReference="7" dependencies="0 1" /> -->
+	<InitialUnknown valueReference="8" dependencies="0 1 1001" />
   </ModelStructure>
 </fmiModelDescription>

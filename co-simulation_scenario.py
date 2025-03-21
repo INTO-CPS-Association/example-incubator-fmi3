@@ -5,6 +5,7 @@ import shutil
 import logging
 import time
 import threading
+import pandas as pd
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -38,6 +39,18 @@ class ThreadedTimer:
     def stop(self):
         self.stop_event.set()
         self.thread.join()
+
+columns = [
+    "sim_time", 
+    "supervisor_event", 
+    "Plant.Temperature", 
+    "Plant.Temperature_heater", 
+    "Controller.heater_ctrl", 
+    "Supervisor.temperature_desired", 
+    "Supervisor.heating_time"
+]
+
+df = pd.DataFrame(columns=columns) # Empty dataframe to store data
 
 plant_fmu_filename = "plant.fmu"
 controller_fmu_filename = "controller.fmu"
@@ -156,6 +169,37 @@ plant_fmu.enterInitializationMode()
 controller_fmu.enterInitializationMode()
 supervisor_fmu.enterInitializationMode()
 
+# Set parameters if needed
+## Standard functionality
+# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[35.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[35.0])
+# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[35.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[20.0])
+# controller_fmu.setFloat32([vrs_controller["heating_time"]],[20.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[5.0])
+# controller_fmu.setFloat32([vrs_controller["lower_bound"]],[5.0])
+# supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[3])
+# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[100])
+
+## For quicker functionality
+supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[25.0])
+supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[25.0])
+controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[25.0])
+supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[15.0])
+controller_fmu.setFloat32([vrs_controller["heating_time"]],[15.0])
+supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[1.0])
+controller_fmu.setFloat32([vrs_controller["lower_bound"]],[1.0])
+supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[1])
+supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[1])
+
+## For different initial conditions (incubator)
+# plant_fmu.setFloat32([vrs_plant["initial_box_temperature"]],[21.0])
+# plant_fmu.setFloat32([vrs_plant["initial_heat_temperature"]],[21.0])
+# plant_fmu.setFloat32([vrs_plant["initial_room_temperature"]],[21.0])
+
+## For controller clock periodicity
+controller_fmu.setIntervalDecimal([vrs_controller["controller_clock"]],[1.5])
+
 # Updating outputs to initial values
 heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
 temperature_desired = supervisor_fmu.getFloat32([vrs_supervisor["temperature_desired"]])[0]
@@ -168,7 +212,7 @@ for connection_src,connection_sink in all_connections.items():
         connection_src_array = connection_src.split(".")
         # No need to check datatype because it's uniform for this example (only 1 known boolean)
         # Get the current output
-        logger.info(f'connection_src_array: {connection_src_array}')
+        #logger.info(f'connection_src_array: {connection_src_array}')
         if connection_src_array[0] == "plant":
             o = plant_fmu.getFloat32([vrs_plant[connection_src_array[1]]])[0]
         elif connection_src_array[0] == "controller":
@@ -176,12 +220,12 @@ for connection_src,connection_sink in all_connections.items():
         elif connection_src_array[0] == "supervisor":
             o = supervisor_fmu.getFloat32([vrs_supervisor[connection_src_array[1]]])[0]
         
-        logger.info(f'output: {o}')
+        #logger.info(f'output: {o}')
         
         # Set the inputs
         for sink in connection_sink:
             sink_array = sink.split(".")
-            logger.info(f'sink_array: {sink_array}')
+            #logger.info(f'sink_array: {sink_array}')
             if sink_array[0] == "plant":
                 plant_fmu.setBoolean([vrs_plant[sink_array[1]]],[o])
             elif sink_array[0] == "controller":
@@ -207,7 +251,6 @@ supervisor_fmu.exitInitializationMode()
 # Initialize periodic timer for controller clock
 def on_tick():
     global controller_time_event
-    print("controller on tick")
     controller_time_event = True
     # controller_fmu.enterEventMode()
     # controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
@@ -215,19 +258,19 @@ def on_tick():
     #     controller_fmu.updateDiscreteStates()
     # controller_fmu.enterStepMode()
 
-#controller_clock_timer = ThreadedTimer(controller_clock_interval, on_tick)
-controller_clock_timer = ThreadedTimer(1.0, on_tick)
+controller_clock_timer = ThreadedTimer(controller_clock_interval, on_tick)
 controller_clock_timer.start()
 
 # Co-simulation loop (loose coupling)
 logger.info(f"Initializing co-simulation for {end_simulation_time} seconds, with step size {step_size}, and real-time {simulation_program_delay}")
 while (sim_time < end_simulation_time):
+    start_computation_time = time.perf_counter()
     step_mode = True
     for connection_src,connection_sink in timed_connections.items():
         connection_src_array = connection_src.split(".")
         # No need to check datatype because it's uniform for this example (only 1 known boolean)
         # Get the current output
-        logger.info(f'connection_src_array (timed): {connection_src_array}')
+        #logger.info(f'connection_src_array (timed): {connection_src_array}')
         if connection_src_array[0] == "plant":
             o = plant_fmu.getFloat32([vrs_plant[connection_src_array[1]]])[0]
         elif connection_src_array[0] == "controller":
@@ -238,7 +281,7 @@ while (sim_time < end_simulation_time):
         # Set the inputs
         for sink in connection_sink:
             sink_array = sink.split(".")
-            logger.info(f'sink_array (timed): {sink_array}')
+            #logger.info(f'sink_array (timed): {sink_array}')
             if sink_array[0] == "plant":
                 plant_fmu.setBoolean([vrs_plant[sink_array[1]]],[o])
             elif sink_array[0] == "controller":
@@ -251,6 +294,9 @@ while (sim_time < end_simulation_time):
     plant_event_needed,plant_terminate_sim,plant_early_return,plant_last_successful_time = plant_fmu.doStep(sim_time, step_size)
     controller_event_needed,controller_terminate_sim,controller_early_return,controller_last_successful_time = controller_fmu.doStep(sim_time, step_size)
     supervisor_event_needed,supervisor_terminate_sim,supervisor_early_return,supervisor_last_successful_time = supervisor_fmu.doStep(sim_time, step_size)
+
+    if supervisor_event_needed:
+        print("supervisor event needed")
 
     # Checking if event mode is needed
     if (controller_time_event and not supervisor_event_needed):
@@ -300,7 +346,7 @@ while (sim_time < end_simulation_time):
             connection_src_array = connection_src.split(".")
             # No need to check datatype because it's uniform for this example (only 1 known boolean)
             # Get the current output
-            logger.info(f'connection_src_array (clocked): {connection_src_array}')
+            #logger.info(f'connection_src_array (clocked): {connection_src_array}')
             if connection_src_array[0] == "controller" and controller_clock:
                 o = controller_fmu.getBoolean([vrs_controller[connection_src_array[1]]])[0]
             elif connection_src_array[0] == "supervisor" and supervisor_clock:
@@ -309,7 +355,7 @@ while (sim_time < end_simulation_time):
             # Set the inputs
             for sink in connection_sink:
                 sink_array = sink.split(".")
-                logger.info(f'sink_array (clocked): {sink_array}')
+                #logger.info(f'sink_array (clocked): {sink_array}')
                 if sink_array[0] == "plant" and controller_clock:
                     plant_fmu.setBoolean([vrs_plant[sink_array[1]]],[o])
                 elif sink_array[0] == "controller" and supervisor_clock:
@@ -347,11 +393,27 @@ while (sim_time < end_simulation_time):
     logger.info(f"Supervisor.temperature_desired :  {temperature_desired}")
     logger.info(f"Supervisor.heating_time :  {heating_time}")   
 
+    # Store the data in the dataframe
+    df.loc[len(df)] = [
+        sim_time,
+        supervisor_event_needed,
+        T,
+        T_heater,
+        heater_ctrl,
+        temperature_desired,
+        heating_time
+    ]
+
     sim_time += step_size
     step_mode = False
+    end_computation_time = time.perf_counter()
+    computation_time = end_computation_time - start_computation_time
     if (simulation_program_delay):
-        time.sleep(step_size)
+        sleeping_time = step_size-computation_time
+        #logger.info(f'Sleeping for {sleeping_time} to follow real time')
+        time.sleep(sleeping_time)
     
+
 
 # Terminate instances
 controller_clock_timer.stop()
@@ -361,6 +423,9 @@ controller_fmu.terminate()
 controller_fmu.freeInstance()
 supervisor_fmu.terminate()
 supervisor_fmu.freeInstance()
+
+# save the data
+df.to_csv("data/simulation_data.csv", index=False)
 
 # clean up
 shutil.rmtree(unzipdir_plant, ignore_errors=True)
