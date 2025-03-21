@@ -210,7 +210,6 @@ T_heater = plant_fmu.getFloat32([vrs_plant["T_heater"]])[0]
 # Get and set initial values
 for connection_src,connection_sink in all_connections.items():
         connection_src_array = connection_src.split(".")
-        # No need to check datatype because it's uniform for this example (only 1 known boolean)
         # Get the current output
         #logger.info(f'connection_src_array: {connection_src_array}')
         if connection_src_array[0] == "plant":
@@ -252,11 +251,6 @@ supervisor_fmu.exitInitializationMode()
 def on_tick():
     global controller_time_event
     controller_time_event = True
-    # controller_fmu.enterEventMode()
-    # controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
-    # if not step_mode:
-    #     controller_fmu.updateDiscreteStates()
-    # controller_fmu.enterStepMode()
 
 controller_clock_timer = ThreadedTimer(controller_clock_interval, on_tick)
 controller_clock_timer.start()
@@ -268,7 +262,6 @@ while (sim_time < end_simulation_time):
     step_mode = True
     for connection_src,connection_sink in timed_connections.items():
         connection_src_array = connection_src.split(".")
-        # No need to check datatype because it's uniform for this example (only 1 known boolean)
         # Get the current output
         #logger.info(f'connection_src_array (timed): {connection_src_array}')
         if connection_src_array[0] == "plant":
@@ -344,7 +337,6 @@ while (sim_time < end_simulation_time):
         # Get and set clocked variables
         for connection_src,connection_sink in clocked_connections.items():
             connection_src_array = connection_src.split(".")
-            # No need to check datatype because it's uniform for this example (only 1 known boolean)
             # Get the current output
             #logger.info(f'connection_src_array (clocked): {connection_src_array}')
             if connection_src_array[0] == "controller" and controller_clock:
