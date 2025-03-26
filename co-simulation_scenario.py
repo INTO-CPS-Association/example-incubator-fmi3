@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
 # Co-simulation parameters
-end_simulation_time = 10.0
+end_simulation_time = 5000.0
 start_simulation_time = 0.0
 sim_time = start_simulation_time # Holds the current time of the simulation
 step_size = 0.5
@@ -171,26 +171,26 @@ supervisor_fmu.enterInitializationMode()
 
 # Set parameters if needed
 ## Standard functionality
-# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[35.0])
-# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[35.0])
-# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[35.0])
-# supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[20.0])
-# controller_fmu.setFloat32([vrs_controller["heating_time"]],[20.0])
-# supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[5.0])
-# controller_fmu.setFloat32([vrs_controller["lower_bound"]],[5.0])
-# supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[3])
-# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[100])
+supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[35.0])
+supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[35.0])
+controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[35.0])
+supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[20.0])
+controller_fmu.setFloat32([vrs_controller["heating_time"]],[20.0])
+supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[5.0])
+controller_fmu.setFloat32([vrs_controller["lower_bound"]],[5.0])
+supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[3])
+supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[100])
 
 ## For quicker functionality
-supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[25.0])
-supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[25.0])
-controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[25.0])
-supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[15.0])
-controller_fmu.setFloat32([vrs_controller["heating_time"]],[15.0])
-supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[1.0])
-controller_fmu.setFloat32([vrs_controller["lower_bound"]],[1.0])
-supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[1])
-supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[1])
+# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[25.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[25.0])
+# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[25.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[15.0])
+# controller_fmu.setFloat32([vrs_controller["heating_time"]],[15.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[1.0])
+# controller_fmu.setFloat32([vrs_controller["lower_bound"]],[1.0])
+# supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[1])
+# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[1])
 
 ## For different initial conditions (incubator)
 # plant_fmu.setFloat32([vrs_plant["initial_box_temperature"]],[21.0])
@@ -198,7 +198,7 @@ supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[1])
 # plant_fmu.setFloat32([vrs_plant["initial_room_temperature"]],[21.0])
 
 ## For controller clock periodicity
-controller_fmu.setIntervalDecimal([vrs_controller["controller_clock"]],[1.5])
+controller_fmu.setIntervalDecimal([vrs_controller["controller_clock"]],[1.0])
 
 # Updating outputs to initial values
 heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]

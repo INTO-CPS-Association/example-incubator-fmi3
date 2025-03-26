@@ -1,6 +1,7 @@
 colorama
 coloredlogs
 FMPy
+matplotlib
 pandas
 protobuf==5.27.3
 pyzmq

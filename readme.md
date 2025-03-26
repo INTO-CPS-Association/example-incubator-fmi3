@@ -34,12 +34,14 @@ The *controller* receives this `triggered clock` from the supervisor, and additi
     ```
     python3 -m venv venv
     . venv/bin/activate
+    pip install -r requirements.txt
     cp fmpy/fmi3.py venv/lib/python<version>/site-packages/fmpy/
     ```
     **Windows:**
     ```
     python -m venv venv
     source venv/Scripts/activate
+    pip install -r requirements.txt
     Copy-Item fmpy\fmi3.py venv\lib\python<version>\site-packages\fmpy
     ```
 
@@ -47,6 +49,14 @@ The *controller* receives this `triggered clock` from the supervisor, and additi
     ```
     python co-simulation_scenario.py
     ```
+
+## Plot the results
+Once you have executed the co-simulation scenario with your updates, you can plot the obtained results with the following command (within the virtual environment):
+```
+python plots/plot.py data/simulation_data.csv --save
+```
+Use the `--save` flag to store the resulting plot in `plots/plot.pdf` and `plots/plot.png`. You can also change the input csv file as needed.
+
 
 ## Cite this work
 TBD
