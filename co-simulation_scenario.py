@@ -98,28 +98,9 @@ timed_connections = {
 		"plant.T_heater": [
 			"supervisor.T_heater"
 		]
-		# "controller.heater_ctrl": [
-		# 	"plant.in_heater_on"
-		# ],
-		# "supervisor.heating_time": [
-		# 	"controller.heating_time"
-		# ],
-		# "supervisor.temperature_desired": [
-		# 	"controller.temperature_desired"
-		# ],
-        # "supervisor.supervisor_clock": [
-		# 	"controller.supervisor_clock"
-		# ]
 	}
 
 clocked_connections = {
-		# "plant.T": [
-		# 	"controller.box_air_temperature",
-        #     "supervisor.T"
-		# ],
-		# "plant.T_heater": [
-		# 	"supervisor.T_heater"
-		# ],
 		"controller.heater_ctrl": [
 			"plant.in_heater_on"
 		],
@@ -178,19 +159,21 @@ supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[20.0])
 controller_fmu.setFloat32([vrs_controller["heating_time"]],[20.0])
 supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[5.0])
 controller_fmu.setFloat32([vrs_controller["lower_bound"]],[5.0])
-supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[3])
+supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[1])
 supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[100])
+supervisor_fmu.setFloat32([vrs_supervisor["trigger_optimization_threshold"]],[5.0]) # Standard is 10.0, but we reduce this one to have updates throughtout all the simulation
 
 ## For quicker functionality
-# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[25.0])
-# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[25.0])
-# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[25.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[22.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[22.0])
+# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[22.0])
 # supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[15.0])
 # controller_fmu.setFloat32([vrs_controller["heating_time"]],[15.0])
 # supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[1.0])
 # controller_fmu.setFloat32([vrs_controller["lower_bound"]],[1.0])
 # supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[1])
-# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[1])
+# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[10])
+# supervisor_fmu.setFloat32([vrs_supervisor["trigger_optimization_threshold"]],[1.0])
 
 ## For different initial conditions (incubator)
 # plant_fmu.setFloat32([vrs_plant["initial_box_temperature"]],[21.0])

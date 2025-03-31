@@ -31,7 +31,7 @@
 	<Float32 name="trigger_optimization_threshold" valueReference="102" variability="tunable" causality="parameter" start="10.0" />
 	<Float32 name="heater_underused_threshold" valueReference="103" variability="tunable" causality="parameter" start="10.0" />
 	<UInt32 name="wait_til_supervising_timer" valueReference="104" variability="tunable" causality="parameter" start="100" />
-	<UInt32 name="setpoint_achievements_parameter" valueReference="105" variability="tunable" causality="parameter" start="3" />
+	<UInt32 name="setpoint_achievements_parameter" valueReference="105" variability="tunable" causality="parameter" start="1" />
 
 	<Clock name="supervisor_clock" valueReference="1001" causality="output" intervalVariability="triggered"/>
 
