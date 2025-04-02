@@ -40,6 +40,7 @@ plt.subplot(3,2,1)
 
 x_axis_values = df_cosim["sim_time"].to_list()
 supervisor_event_axis_values = df_cosim["supervisor_event"].to_list()
+controller_event_axis_values = df_cosim["controller_event"].to_list()
 controller_heater_ctrl_axis_values = df_cosim["Controller.heater_ctrl"].to_list()
 
 plt.step(x_axis_values,supervisor_event_axis_values)
@@ -52,10 +53,20 @@ plt.grid()
 plt.tight_layout()
 
 plt.subplot(3,2,2)
+plt.step(x_axis_values,controller_event_axis_values)
+plt.title("(2) Controller's periodic clock")
+plt.yticks([1.0, 0.0],["True","False"])
+plt.legend(['controller_event'])
+plt.xlabel('simulation time [s]')
+plt.ylabel('state')
+plt.grid()
+plt.tight_layout()
+
+plt.subplot(3,2,3)
 df_cosim.plot(x = "sim_time",y = ["Plant.Temperature","Plant.Temperature_heater"],
              figsize=(12,12),
-             title = "(2) Plant temperatures",
-             ax=axes[0,1],
+             title = "(3) Plant temperatures",
+             ax=axes[1,0],
 )
 plt.xlabel('simulation time [s]')
 plt.ylabel('Temperature (°C)')
@@ -63,10 +74,10 @@ plt.legend(['Box temperature','Heater temperature'])
 plt.grid()
 plt.tight_layout()
 
-plt.subplot(3,2,3)
+plt.subplot(3,2,4)
 
 plt.step(x_axis_values,controller_heater_ctrl_axis_values)
-plt.title("(3) Heater control")
+plt.title("(4) Heater control")
 plt.yticks([1.0, 0.0],["True","False"])
 plt.legend(['heater_ctrl'])
 plt.xlabel('simulation time [s]')
@@ -74,11 +85,11 @@ plt.ylabel('state')
 plt.grid()
 plt.tight_layout()
 
-plt.subplot(3,2,4)
+plt.subplot(3,2,5)
 df_cosim.plot(x = "sim_time",y = ["Supervisor.temperature_desired"],
              figsize=(12,12),
-             title = "(4) Supervisor's desired temperature",
-             ax=axes[1,1],
+             title = "(5) Supervisor's desired temperature",
+             ax=axes[2,0],
 )
 plt.xlabel('simulation time [s]')
 plt.ylabel('Temperature (°C)')
@@ -86,11 +97,11 @@ plt.legend(['desired temperature'])
 plt.grid()
 plt.tight_layout()
 
-plt.subplot(3,2,5)
+plt.subplot(3,2,6)
 df_cosim.plot(x = "sim_time",y = ["Supervisor.heating_time"],
              figsize=(12,12),
-             title = "(4) Supervisor's heating time",
-             ax=axes[2,0],
+             title = "(6) Supervisor's heating time",
+             ax=axes[2,1],
 )
 plt.xlabel('simulation time [s]')
 plt.ylabel('time [s]')

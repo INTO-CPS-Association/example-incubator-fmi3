@@ -42,7 +42,8 @@ class ThreadedTimer:
 
 columns = [
     "sim_time", 
-    "supervisor_event", 
+    "supervisor_event",
+    "controller_event",
     "Plant.Temperature", 
     "Plant.Temperature_heater", 
     "Controller.heater_ctrl", 
@@ -164,15 +165,15 @@ supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[100])
 supervisor_fmu.setFloat32([vrs_supervisor["trigger_optimization_threshold"]],[5.0]) # Standard is 10.0, but we reduce this one to have updates throughtout all the simulation
 
 ## For quicker functionality
-# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[22.0])
-# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[22.0])
-# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[22.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["desired_temperature_parameter"]],[25.0])
+# supervisor_fmu.setFloat32([vrs_supervisor["temperature_desired"]],[25.0])
+# controller_fmu.setFloat32([vrs_controller["temperature_desired"]],[25.0])
 # supervisor_fmu.setFloat32([vrs_supervisor["heating_time"]],[15.0])
 # controller_fmu.setFloat32([vrs_controller["heating_time"]],[15.0])
 # supervisor_fmu.setFloat32([vrs_supervisor["lower_bound"]],[1.0])
 # controller_fmu.setFloat32([vrs_controller["lower_bound"]],[1.0])
 # supervisor_fmu.setUInt32([vrs_supervisor["setpoint_achievements_parameter"]],[1])
-# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[10])
+# supervisor_fmu.setUInt32([vrs_supervisor["wait_til_supervising_timer"]],[50])
 # supervisor_fmu.setFloat32([vrs_supervisor["trigger_optimization_threshold"]],[1.0])
 
 ## For different initial conditions (incubator)
@@ -181,7 +182,7 @@ supervisor_fmu.setFloat32([vrs_supervisor["trigger_optimization_threshold"]],[5.
 # plant_fmu.setFloat32([vrs_plant["initial_room_temperature"]],[21.0])
 
 ## For controller clock periodicity
-controller_fmu.setIntervalDecimal([vrs_controller["controller_clock"]],[1.0])
+controller_fmu.setIntervalDecimal([vrs_controller["controller_clock"]],[3.0])
 
 # Updating outputs to initial values
 heater_ctrl = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
@@ -223,7 +224,7 @@ print(f'controller_clock_interval: {controller_clock_interval}')
 # Variable to store time event
 step_mode = False
 controller_time_event = False
-
+controller_time_event_logging = False
 
 # Exit initialization mode
 plant_fmu.exitInitializationMode()
@@ -271,8 +272,7 @@ while (sim_time < end_simulation_time):
     controller_event_needed,controller_terminate_sim,controller_early_return,controller_last_successful_time = controller_fmu.doStep(sim_time, step_size)
     supervisor_event_needed,supervisor_terminate_sim,supervisor_early_return,supervisor_last_successful_time = supervisor_fmu.doStep(sim_time, step_size)
 
-    if supervisor_event_needed:
-        print("supervisor event needed")
+    controller_time_event_logging = controller_time_event
 
     # Checking if event mode is needed
     if (controller_time_event and not supervisor_event_needed):
@@ -311,8 +311,7 @@ while (sim_time < end_simulation_time):
 
         if controller_time_event:
             controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
-            controller_time_event = False
-            
+            controller_time_event = False            
 
         supervisor_clock = supervisor_fmu.getClock([vrs_supervisor["supervisor_clock"]])[0]
         controller_clock = controller_fmu.getClock([vrs_controller["controller_clock"]])[0]
@@ -372,6 +371,7 @@ while (sim_time < end_simulation_time):
     df.loc[len(df)] = [
         sim_time,
         supervisor_event_needed,
+        controller_time_event_logging,
         T,
         T_heater,
         heater_ctrl,
@@ -388,8 +388,6 @@ while (sim_time < end_simulation_time):
         #logger.info(f'Sleeping for {sleeping_time} to follow real time')
         time.sleep(sleeping_time)
     
-
-
 # Terminate instances
 controller_clock_timer.stop()
 plant_fmu.terminate()

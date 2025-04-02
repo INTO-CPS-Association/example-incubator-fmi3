@@ -55,6 +55,8 @@ class Model:
         self.previous_T = 0.0
         self.previous_previous_T = 0.0
         self.previous_desired_temperature_parameter = self.desired_temperature_parameter
+        self.derivative_positive = False
+        self.cooldown_flag = False
         
         self.supervisor_clock = False
         self.clock_reference_to_interval = {
@@ -122,7 +124,6 @@ class Model:
         if self.supervisor_state == SupervisorState.Waiting:
             if self.next_action_timer > 0:
                 self.next_action_timer -= 1
-                #event_handling_needed = True
 
             if self.next_action_timer == 0:
                 event_handling_needed = True
@@ -134,19 +135,27 @@ class Model:
             if heater_safe and heater_underused and temperature_residual_above_threshold:
                 event_handling_needed = True
 
-        if ((self.T >= self.desired_temperature_parameter) and (self.previous_previous_T < self.previous_desired_temperature_parameter)):
+        if (self.T > self.previous_T > self.previous_previous_T):
+            # Derivative is possitive
+            self.derivative_positive = True        
+        elif (self.T < self.previous_T < self.previous_previous_T):
+            # Derivative is negative
+            self.derivative_positive = False
+
+        if ((self.T >= self.desired_temperature_parameter) and (self.derivative_positive) and (not self.cooldown_flag)):
             event_handling_needed = True
+        elif (self.T < self.desired_temperature_parameter) and (not self.derivative_positive) and (self.cooldown_flag):
+            event_handling_needed = True                    
 
         if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
             event_handling_needed = True
 
-
         if(event_handling_needed):
             self.supervisor_clock = True
 
+        # Preserving the two last states of the temperature to identify derivative direction
         self.previous_previous_T = self.previous_T
-        self.previous_T = self.T
-        
+        self.previous_T = self.T        
 
         return (
             Fmi3Status.ok,
@@ -444,16 +453,12 @@ class Model:
 
 
         if self.supervisor_state == SupervisorState.Waiting:
-            # assert self.next_action_timer >= 0
-            # if self.next_action_timer > 0:
-            #     self.next_action_timer -= 1
 
             if self.next_action_timer == 0:
                 self.supervisor_state = SupervisorState.Listening
                 self.next_action_timer = -1
 
         if self.supervisor_state == SupervisorState.Listening:
-            # assert self.next_action_timer < 0
             heater_safe = self.T_heater < self.max_t_heater
             heater_underused = (self.max_t_heater - self.T_heater) > self.heater_underused_threshold
             temperature_residual_above_threshold = np.absolute(self.T - self.desired_temperature_parameter) > self.trigger_optimization_threshold
@@ -461,16 +466,18 @@ class Model:
                 # Reoptimize controller and then go into waiting
                 # self.controller_optimizer.optimize_controller() # -> This is we are to use the actual incubator optimizer
                 # For now, we use a simpler approach for the supervisor
-                # self.temperature_desired = 35.0
-                # self.lower_bound = 5.0
-                # self.heating_gap = 20.0                
+            
                 rand_number = np.random.rand(1)[0] * 0.1 - 0.05
-                self.heating_time += rand_number # Updating heating time                
+                self.heating_time += rand_number # Updating heating time around +-0.05 of the current heating time       
                 self.supervisor_state = SupervisorState.Waiting
-                self.next_action_timer = self.wait_til_supervising_timer
-
-        if ((self.T >= self.desired_temperature_parameter) and (self.previous_previous_T < self.previous_desired_temperature_parameter)):
+                self.next_action_timer = self.wait_til_supervising_timer # Resetting the cooldown
+    
+        if ((self.T >= self.desired_temperature_parameter) and (self.derivative_positive) and (not self.cooldown_flag)):
             self.setpoint_achievements +=1
+            self.cooldown_flag = True        
+        elif (self.T < self.desired_temperature_parameter) and (not self.derivative_positive) and (self.cooldown_flag):
+            self.cooldown_flag = False # Resetting the cooldown
+
         if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
             # Updating the setpoint for a random value within +- 1.0 of the current setpoint
             self.previous_desired_temperature_parameter = self.desired_temperature_parameter
