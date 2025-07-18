@@ -58,6 +58,10 @@ Attendees are required to:
 
 **If using Jupyter Notebook (on Google Colab):**
 - Have a Google account.
+- Download the jupyter notebook `jupyter/tutorial_fmi3_unifmu_incubator.ipynb` [here](jupyter/tutorial_fmi3_unifmu_incubator.ipynb).
+- Upload it to your Google Drive account.
+  - Give permissions to Google Colab if needed.
+- Now you're able to use the Google Colab environment.
 
 ### Schedule
 - Demonstration with the running example (Incubator).
