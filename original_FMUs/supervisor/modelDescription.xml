@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<fmiModelDescription fmiVersion="3.0-beta.4" modelName="unifmu" instantiationToken="77236337-210e-4e9c-8f2c-c1a0677db21b" author="Yon Vanommeslaeghe" version="0.0.1" license="MIT" generationDateAndTime="2024-08-14T15:12:25Z" variableNamingConvention="flat" generationTool="unifmu">
+  <CoSimulation modelIdentifier="unifmu" needsExecutionTool="true" canBeInstantiatedOnlyOncePerProcess="false" canGetAndSetFMUState="true" canSerializeFMUState="true" canHandleVariableCommunicationStepSize="true" hasEventMode="true" />
+  <LogCategories>
+    <Category name="logStatusWarning" />
+    <Category name="logStatusDiscard" />
+    <Category name="logStatusError" />
+    <Category name="logStatusFatal" />
+    <Category name="logStatusPending" />
+    <Category name="logAll" />
+  </LogCategories>
+  
+  <ModelVariables>
+	<Float64 name="time" valueReference="999" causality="independent" variability="continuous" description="Simulation time"/>
+	
+	<Float32 name="T" valueReference="0" variability="continuous" causality="input" start="0.0" />
+	<Float32 name="T_heater" valueReference="1" variability="continuous" causality="input" start="0.0" />
+	<Float32 name="temperature_desired" valueReference="2" variability="continuous" causality="output" initial="calculated" clocks="1001" />
+	
+	<Float32 name="lower_bound" valueReference="3" variability="continuous" causality="output" initial="calculated" />
+	<Float32 name="heating_time" valueReference="4" variability="continuous" causality="output" initial="calculated" clocks="1001" />
+	<Float32 name="heating_gap" valueReference="5" variability="continuous" causality="output" initial="calculated" />
+	
+	<!-- <UInt32 name="n_samples_period" valueReference="6" variability="discrete" causality="output" initial="calculated" />
+	<UInt32 name="n_samples_heating" valueReference="7" variability="discrete" causality="output" initial="calculated" /> -->
+	<UInt32 name="setpoint_achievements" valueReference="8" variability="discrete" causality="output" initial="calculated" clocks="1001"/>
+
+
+	<Float32 name="desired_temperature_parameter" valueReference="100" variability="tunable" causality="parameter" start="35.0" />
+	<Float32 name="max_t_heater" valueReference="101" variability="tunable" causality="parameter" start="60.0" />
+	<Float32 name="trigger_optimization_threshold" valueReference="102" variability="tunable" causality="parameter" start="10.0" />
+	<Float32 name="heater_underused_threshold" valueReference="103" variability="tunable" causality="parameter" start="10.0" />
+	<UInt32 name="wait_til_supervising_timer" valueReference="104" variability="tunable" causality="parameter" start="100" />
+	<UInt32 name="setpoint_achievements_parameter" valueReference="105" variability="tunable" causality="parameter" start="1" />
+
+	<Clock name="supervisor_clock" valueReference="1001" causality="output" intervalVariability="triggered"/>
+
+
+  </ModelVariables>
+  <ModelStructure>
+	<Output valueReference="2" dependencies="0 1 1001" />
+	<Output valueReference="3" dependencies="0 1" />
+	<Output valueReference="4" dependencies="0 1 1001" />
+	<Output valueReference="5" dependencies="0 1" />
+	<!-- <Output valueReference="6" dependencies="0 1" />
+	<Output valueReference="7" dependencies="0 1" /> -->
+	<Output valueReference="8" dependencies="0 1 1001" />
+
+	<InitialUnknown valueReference="2" dependencies="0 1 1001" />
+	<InitialUnknown valueReference="3" dependencies="0 1" />
+	<InitialUnknown valueReference="4" dependencies="0 1 1001" />
+	<InitialUnknown valueReference="5" dependencies="0 1" />
+	<!-- <InitialUnknown valueReference="6" dependencies="0 1" />
+	<InitialUnknown valueReference="7" dependencies="0 1" /> -->
+	<InitialUnknown valueReference="8" dependencies="0 1 1001" />
+  </ModelStructure>
+</fmiModelDescription>
