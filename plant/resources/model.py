@@ -23,7 +23,6 @@ class Model:
         self.early_return_allowed = early_return_allowed
         self.required_intermediate_variables = required_intermediate_variables
         self.state = FMIState.FMIInstantiatedState
-
         # Replicates the FourParameterIncubatorPlant model
 
         # Parameters
@@ -87,6 +86,7 @@ class Model:
 
     # ================= FMI3 =================
 
+    # ================= doStep and updateDiscreteStates =================
     def fmi3DoStep(
             self,
             current_communication_point: float,
@@ -128,6 +128,21 @@ class Model:
             early_return,
             last_successful_time,
         )
+    
+    def fmi3UpdateDiscreteStates(self):
+        status = Fmi3Status.ok
+        discrete_states_need_update = False
+        terminate_simulation = False
+        nominals_continuous_states_changed = False
+        values_continuous_states_changed = False
+        next_event_time_defined = True
+        next_event_time = 1.0
+
+
+        return (status, discrete_states_need_update, terminate_simulation, nominals_continuous_states_changed,
+                values_continuous_states_changed, next_event_time_defined, next_event_time)
+
+    # ================= Initialization, Enter, Termination, and Reset =================
 
     def fmi3EnterInitializationMode(
             self,
@@ -153,7 +168,10 @@ class Model:
         return Fmi3Status.ok
     
     def fmi3EnterConfigurationMode(self):
-        self.state = FMIState.FMIConfigurationModeState if self.state == FMIState.FMIInstantiatedState else FMIState.FMIReconfigurationModeState
+        if len(self.tunable_structural_parameters)>0:
+            self.state = FMIState.FMIConfigurationModeState if self.state == FMIState.FMIInstantiatedState else FMIState.FMIReconfigurationModeState
+        else:
+            return Fmi3Status.error
         return Fmi3Status.ok
 
     def fmi3ExitConfigurationMode(self):
@@ -185,6 +203,8 @@ class Model:
         self.T_heater = self.initial_heat_temperature      
 
         return Fmi3Status.ok
+
+    # ================= Serialization =================
 
     def fmi3SerializeFmuState(self):
 
@@ -235,6 +255,8 @@ class Model:
         self.T_heater = T_heater
 
         return Fmi3Status.ok
+    
+    # ================= Getters =================
 
     def fmi3GetFloat32(self, value_references):
         return self._get_value(value_references)
@@ -323,6 +345,8 @@ class Model:
             resolutions.append(denominator)
 
         return Fmi3Status.ok, counters, resolutions
+    
+    # ================= Setters =================
 
     def fmi3SetFloat32(self, value_references, values):
         return self._set_value(value_references, values)
@@ -360,7 +384,8 @@ class Model:
     def fmi3SetString(self, value_references, values):
         return self._set_value(value_references, values)
 
-    def fmi3SetBinary(self, value_references, values):
+    def fmi3SetBinary(self, value_references, value_sizes, values):
+        # Store 'value_sizes' somewhere if needed
         return self._set_value(value_references, values)
 
     def fmi3SetClock(self, value_references, values):
@@ -387,45 +412,32 @@ class Model:
             self.clock_reference_to_shift[r] = float(counters[idx])/float(resolutions[idx])
         return Fmi3Status.ok
 
-    def fmi3UpdateDiscreteStates(self):
-        status = Fmi3Status.ok
-        discrete_states_need_update = False
-        terminate_simulation = False
-        nominals_continuous_states_changed = False
-        values_continuous_states_changed = False
-        next_event_time_defined = True
-        next_event_time = 1.0
-
-
-
-        return (status, discrete_states_need_update, terminate_simulation, nominals_continuous_states_changed,
-                values_continuous_states_changed, next_event_time_defined, next_event_time)
+    
 
     # ================= Helpers =================
 
     def _set_value(self, references, values):
-        if (self.state == FMIState.FMIConfigurationModeState or self.state == FMIState.FMIReconfigurationModeState):
-            for r, v in zip(references, values):
-                if (r in self.clocked_variables) or (r in self.reference_to_attribute):
-                    return Fmi3Status.error 
-                setattr(self, self.all_references[r], v)
-        elif (self.state == FMIState.FMIEventModeState):
-            for r, v in zip(references, values):
-                if (r in self.reference_to_attribute) or (r in self.tunable_structural_parameters):
-                    return Fmi3Status.error 
-                setattr(self, self.all_references[r], v)
-        elif (self.state == FMIState.FMIInitializationModeState):
-            for r, v in zip(references, values):
-                setattr(self, self.all_references[r], v)
-        else:
-            for r, v in zip(references, values):
-                if ((self.event_mode_used) and (r in self.tunable_parameters)) or (r in self.clocked_variables) or (r in self.tunable_structural_parameters) or (r in self.parameters):
-                    return Fmi3Status.error              
-                setattr(self, self.reference_to_attribute[r], v)
+        for r, v in zip(references, values):
+            if (r in self.clocked_variables or r in self.tunable_parameters):
+                if (self.state == FMIState.FMIEventModeState or self.state == FMIState.FMIInitializationModeState):
+                    pass
+                else:
+                    return Fmi3Status.error
+            elif (r in self.tunable_structural_parameters):
+                if (self.state == FMIState.FMIConfigurationModeState or self.state == FMIState.FMIReconfigurationModeState or self.state == FMIState.FMIInitializationModeState):
+                    pass
+                else:
+                    return Fmi3Status.error
+            elif (r in self.parameters):
+                if (self.state == FMIState.FMIInitializationModeState):
+                    pass
+                else:
+                    return Fmi3Status.error
+            setattr(self, self.all_references[r], v)
         return Fmi3Status.ok
 
     def _get_value(self, references):
-        
+
         values = []
         for r in references:
             if r in self.clocked_variables:
@@ -434,7 +446,6 @@ class Model:
             values.append(getattr(self, self.all_references[r]))
 
         return Fmi3Status.ok, values
-
 
 
 
@@ -467,18 +478,3 @@ class FMIState(IntFlag):
     FMIContinuousTimeModeState  = 1 << 7,
     FMIStepModeState            = 1 << 8,
     FMIClockActivationMode      = 1 << 9
-
-
-if __name__ == "__main__":
-    m = Model("plant",
-            "1234",
-            "",
-            False,
-            False,
-            False,
-            False,
-            None
-            )
-    m.in_heater_on = True
-    assert m.fmi3DoStep(0.0, 1.0, False)[0] == Fmi3Status.ok
-    assert m.fmi3DoStep(1.0, 1.0, False)[0] == Fmi3Status.ok

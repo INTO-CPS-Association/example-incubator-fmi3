@@ -24,7 +24,7 @@ class Model:
         self.early_return_allowed = early_return_allowed
         self.required_intermediate_variables = required_intermediate_variables
         self.state = FMIState.FMIInstantiatedState
-
+        
         # Replicating the SupervisorThresholdSM behavior of the incubator
         # # Plant --> Supervisor
         # self.supervisor.T = self.plant.out_T
@@ -106,16 +106,16 @@ class Model:
         self.all_parameters = {**self.tunable_structural_parameters,
                                **self.parameters,
                                **self.tunable_parameters}
-
-
     # ================= FMI3 =================
 
+    # ================= doStep and updateDiscreteStates =================
     def fmi3DoStep(
             self,
             current_communication_point: float,
             communication_step_size: float,
             no_set_fmu_state_prior_to_current_point: bool,
     ):
+
         event_handling_needed = False
         terminate_simulation = False
         early_return = False
@@ -164,6 +164,59 @@ class Model:
             early_return,
             last_successful_time,
         )
+    
+    def fmi3UpdateDiscreteStates(self):
+        status = Fmi3Status.ok
+        discrete_states_need_update = False
+        terminate_simulation = False
+        nominals_continuous_states_changed = False
+        values_continuous_states_changed = False
+        next_event_time_defined = True
+        next_event_time = 0.0
+
+
+        if self.supervisor_state == SupervisorState.Waiting:
+
+            if self.next_action_timer == 0:
+                self.supervisor_state = SupervisorState.Listening
+                self.next_action_timer = -1
+
+        if self.supervisor_state == SupervisorState.Listening:
+            heater_safe = self.T_heater < self.max_t_heater
+            heater_underused = (self.max_t_heater - self.T_heater) > self.heater_underused_threshold
+            temperature_residual_above_threshold = np.absolute(self.T - self.desired_temperature_parameter) > self.trigger_optimization_threshold
+            if heater_safe and heater_underused and temperature_residual_above_threshold:
+                # Reoptimize controller and then go into waiting
+                # self.controller_optimizer.optimize_controller() # -> This is we are to use the actual incubator optimizer
+                # For now, we use a simpler approach for the supervisor
+            
+                rand_number = np.random.rand(1)[0] * 0.1 - 0.05
+                self.heating_time += rand_number # Updating heating time around +-0.05 of the current heating time       
+                self.supervisor_state = SupervisorState.Waiting
+                self.next_action_timer = self.wait_til_supervising_timer # Resetting the cooldown
+    
+        if ((self.T >= self.desired_temperature_parameter) and (self.derivative_positive) and (not self.cooldown_flag)):
+            self.setpoint_achievements +=1
+            self.cooldown_flag = True        
+        elif (self.T < self.desired_temperature_parameter) and (not self.derivative_positive) and (self.cooldown_flag):
+            self.cooldown_flag = False # Resetting the cooldown
+
+        if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
+            # Updating the setpoint for a random value within +- 1.0 of the current setpoint
+            self.previous_desired_temperature_parameter = self.desired_temperature_parameter
+            rand_number = np.random.rand(1)[0] * 2 - 1.0
+            self.desired_temperature_parameter += rand_number
+            self.temperature_desired += rand_number
+            self.setpoint_achievements = 0 # Resetting the counter
+
+        self.supervisor_clock = False
+
+
+
+        return (status, discrete_states_need_update, terminate_simulation, nominals_continuous_states_changed,
+                values_continuous_states_changed, next_event_time_defined, next_event_time)
+
+    # ================= Initialization, Enter, Termination, and Reset =================
 
     def fmi3EnterInitializationMode(
             self,
@@ -178,8 +231,6 @@ class Model:
 
     def fmi3ExitInitializationMode(self):
         self.state = FMIState.FMIEventModeState if self.event_mode_used else FMIState.FMIStepModeState
-        self.next_action_timer = self.wait_til_supervising_timer
-        self.previous_desired_temperature_parameter = self.desired_temperature_parameter
         return Fmi3Status.ok
 
     def fmi3EnterEventMode(self):
@@ -191,7 +242,10 @@ class Model:
         return Fmi3Status.ok
     
     def fmi3EnterConfigurationMode(self):
-        self.state = FMIState.FMIConfigurationModeState if self.state == FMIState.FMIInstantiatedState else FMIState.FMIReconfigurationModeState
+        if len(self.tunable_structural_parameters)>0:
+            self.state = FMIState.FMIConfigurationModeState if self.state == FMIState.FMIInstantiatedState else FMIState.FMIReconfigurationModeState
+        else:
+            return Fmi3Status.error
         return Fmi3Status.ok
 
     def fmi3ExitConfigurationMode(self):
@@ -226,6 +280,8 @@ class Model:
         self.supervisor_state = SupervisorState.Waiting
         self.supervisor_clock = False
         return Fmi3Status.ok
+
+    # ================= Serialization =================
 
     def fmi3SerializeFmuState(self):
 
@@ -290,6 +346,8 @@ class Model:
         self.supervisor_state = supervisor_state
         self.supervisor_clock = supervisor_clock
         return Fmi3Status.ok
+    
+    # ================= Getters =================
 
     def fmi3GetFloat32(self, value_references):
         return self._get_value(value_references)
@@ -378,6 +436,8 @@ class Model:
             resolutions.append(denominator)
 
         return Fmi3Status.ok, counters, resolutions
+    
+    # ================= Setters =================
 
     def fmi3SetFloat32(self, value_references, values):
         return self._set_value(value_references, values)
@@ -415,7 +475,8 @@ class Model:
     def fmi3SetString(self, value_references, values):
         return self._set_value(value_references, values)
 
-    def fmi3SetBinary(self, value_references, values):
+    def fmi3SetBinary(self, value_references, value_sizes, values):
+        # Store 'value_sizes' somewhere if needed
         return self._set_value(value_references, values)
 
     def fmi3SetClock(self, value_references, values):
@@ -442,78 +503,28 @@ class Model:
             self.clock_reference_to_shift[r] = float(counters[idx])/float(resolutions[idx])
         return Fmi3Status.ok
 
-    def fmi3UpdateDiscreteStates(self):
-        status = Fmi3Status.ok
-        discrete_states_need_update = False
-        terminate_simulation = False
-        nominals_continuous_states_changed = False
-        values_continuous_states_changed = False
-        next_event_time_defined = False
-        next_event_time = 0.0
-
-
-        if self.supervisor_state == SupervisorState.Waiting:
-
-            if self.next_action_timer == 0:
-                self.supervisor_state = SupervisorState.Listening
-                self.next_action_timer = -1
-
-        if self.supervisor_state == SupervisorState.Listening:
-            heater_safe = self.T_heater < self.max_t_heater
-            heater_underused = (self.max_t_heater - self.T_heater) > self.heater_underused_threshold
-            temperature_residual_above_threshold = np.absolute(self.T - self.desired_temperature_parameter) > self.trigger_optimization_threshold
-            if heater_safe and heater_underused and temperature_residual_above_threshold:
-                # Reoptimize controller and then go into waiting
-                # self.controller_optimizer.optimize_controller() # -> This is we are to use the actual incubator optimizer
-                # For now, we use a simpler approach for the supervisor
-            
-                rand_number = np.random.rand(1)[0] * 0.1 - 0.05
-                self.heating_time += rand_number # Updating heating time around +-0.05 of the current heating time       
-                self.supervisor_state = SupervisorState.Waiting
-                self.next_action_timer = self.wait_til_supervising_timer # Resetting the cooldown
     
-        if ((self.T >= self.desired_temperature_parameter) and (self.derivative_positive) and (not self.cooldown_flag)):
-            self.setpoint_achievements +=1
-            self.cooldown_flag = True        
-        elif (self.T < self.desired_temperature_parameter) and (not self.derivative_positive) and (self.cooldown_flag):
-            self.cooldown_flag = False # Resetting the cooldown
-
-        if (self.setpoint_achievements >= self.setpoint_achievements_parameter):
-            # Updating the setpoint for a random value within +- 1.0 of the current setpoint
-            self.previous_desired_temperature_parameter = self.desired_temperature_parameter
-            rand_number = np.random.rand(1)[0] * 2 - 1.0
-            self.desired_temperature_parameter += rand_number
-            self.temperature_desired += rand_number
-            self.setpoint_achievements = 0 # Resetting the counter
-
-        self.supervisor_clock = False
-
-
-
-        return (status, discrete_states_need_update, terminate_simulation, nominals_continuous_states_changed,
-                values_continuous_states_changed, next_event_time_defined, next_event_time)
 
     # ================= Helpers =================
 
     def _set_value(self, references, values):
-        if (self.state == FMIState.FMIConfigurationModeState or self.state == FMIState.FMIReconfigurationModeState):
-            for r, v in zip(references, values):
-                if (r in self.clocked_variables) or (r in self.reference_to_attribute):
-                    return Fmi3Status.error 
-                setattr(self, self.all_references[r], v)
-        elif (self.state == FMIState.FMIEventModeState):
-            for r, v in zip(references, values):
-                if (r in self.reference_to_attribute) or (r in self.tunable_structural_parameters):
-                    return Fmi3Status.error 
-                setattr(self, self.all_references[r], v)
-        elif (self.state == FMIState.FMIInitializationModeState):
-            for r, v in zip(references, values):
-                setattr(self, self.all_references[r], v)
-        else:
-            for r, v in zip(references, values):
-                if ((self.event_mode_used) and (r in self.tunable_parameters)) or (r in self.clocked_variables) or (r in self.tunable_structural_parameters) or (r in self.parameters):
-                    return Fmi3Status.error              
-                setattr(self, self.reference_to_attribute[r], v)
+        for r, v in zip(references, values):
+            if (r in self.clocked_variables or r in self.tunable_parameters):
+                if (self.state == FMIState.FMIEventModeState or self.state == FMIState.FMIInitializationModeState):
+                    pass
+                else:
+                    return Fmi3Status.error
+            elif (r in self.tunable_structural_parameters):
+                if (self.state == FMIState.FMIConfigurationModeState or self.state == FMIState.FMIReconfigurationModeState or self.state == FMIState.FMIInitializationModeState):
+                    pass
+                else:
+                    return Fmi3Status.error
+            elif (r in self.parameters):
+                if (self.state == FMIState.FMIInitializationModeState):
+                    pass
+                else:
+                    return Fmi3Status.error
+            setattr(self, self.all_references[r], v)
         return Fmi3Status.ok
 
     def _get_value(self, references):
@@ -526,7 +537,6 @@ class Model:
             values.append(getattr(self, self.all_references[r]))
 
         return Fmi3Status.ok, values
-
 
 class Fmi3Status():
     """
@@ -563,17 +573,3 @@ class SupervisorState():
     Waiting = 1
     Listening = 2
 
-if __name__ == "__main__":
-    m = Model("supervisor",
-            "1111",
-            "",
-            True,
-            True,
-            True,
-            True,
-            None)
-    m.T = 29.9
-    m.T_heater = 34.5
-    assert m.fmi3DoStep(0.0, 1.0, False)[0] == Fmi3Status.ok
-    assert m.fmi3DoStep(1.0, 1.0, False)[0] == Fmi3Status.ok
-    

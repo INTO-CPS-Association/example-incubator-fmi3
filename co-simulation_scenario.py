@@ -16,7 +16,7 @@ end_simulation_time = 5000.0
 start_simulation_time = 0.0
 sim_time = start_simulation_time # Holds the current time of the simulation
 step_size = 0.5
-simulation_program_delay = True # Set to True for real-time simulation
+simulation_program_delay = False # Set to True for real-time simulation
 
 class ThreadedTimer:
     def __init__(self, interval, function, *args, **kwargs):
