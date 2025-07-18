@@ -58,8 +58,9 @@ Attendees are required to:
 
 **If using Jupyter Notebook (on Google Colab):**
 - Have a Google account.
-- Download the jupyter notebook `jupyter/tutorial_fmi3_unifmu_incubator.ipynb` [here](jupyter/tutorial_fmi3_unifmu_incubator.ipynb).
-- Upload it to your Google Drive account.
+- Download the Jupyter Notebook `jupyter/tutorial_fmi3_unifmu_incubator.ipynb` [here](jupyter/tutorial_fmi3_unifmu_incubator.ipynb).
+- Upload it to your Google Drive account or, alternatively, open it directly on [Google Colab](https://colab.research.google.com/).
+- If using Google Drive, open the file with `right click > Open with... > Google Colaboratory`. If directly using Google Colab, upload the Jupyter Notebook file with the options provided.
   - Give permissions to Google Colab if needed.
 - Now you're able to use the Google Colab environment.
 
