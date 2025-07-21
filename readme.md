@@ -4,12 +4,15 @@
 
 This repository contains the agenda and materials for the Tutorial on FMI3 co-simulation with UniFMU presented at the [16th International Modelica & FMI Conference](https://modelica.org/events/modelica2025/).
 
+**Authors:**
+- [Santiago Gil](https://github.com/sagilar). *Email*: [sgil@ece.au.dk](mailto:sgil@ece.au.dk)
+- [Cláudio Gomes](https://github.com/clagms). *Email*: [claudio.gomes@ece.au.dk](mailto:claudio.gomes@ece.au.dk)
+- [Yon Vanommeslaeghe](https://github.com/YonVanom). *Email*: [yon.vanommeslaeghe@uantwerpen.be](mailto:yon.vanommeslaeghe@uantwerpen.be)
+
 ## Table of Contents
 - [Agenda](#agenda).
 - [Introduction to FMI 3 and Clocks, and UniFMU](#introduction-to-fmi-3-and-clocks-and-unifmu).
   - [Schedule](#schedule).
-  - [Q&A](#qa).
-  - [Break](#break).
 - [Demo and Recreation of the Running Example](#demo-and-recreation-of-the-running-example).
   - [Prerequisites](#prerequisites).
   - [Schedule](#schedule-1).
@@ -17,7 +20,6 @@ This repository contains the agenda and materials for the Tutorial on FMI3 co-si
   - [Clocks](#clocks).
   - [Step-by-Step Implementation (Locally)](#step-by-step-implementation-locally).
     - [Plot the results](#plot-the-results).
-  - [Q&A](#qa-1).
 - [Acknowledgments](#acknowledgments).
 
 ## Agenda
@@ -27,7 +29,7 @@ This repository contains the agenda and materials for the Tutorial on FMI3 co-si
 | 13:30 | [Introduction to FMI 3 and Clocks, and UniFMU](#introduction-to-fmi-3-and-clocks-and-unifmu) |
 | 14:45 | Q&A                                                                                          |
 | 15:00 | Break                                                                                        |
-| 15:30 | Demo and Recreation of the Running Example                                                   |
+| 15:30 | [Demo and Recreation of the Running Example](#demo-and-recreation-of-the-running-example)    |
 | 16:30 | Q&A                                                                                          |
 | 16:40 | End Tutorial                                                                                 |
 
@@ -38,9 +40,6 @@ This repository contains the agenda and materials for the Tutorial on FMI3 co-si
 - Introduction to UniFMU.
 - Introduction to creating FMI3 FMUs with UniFMU.
 
-### Q&A
-
-### Break
 
 ## Demo and Recreation of the Running Example
 
@@ -58,11 +57,7 @@ Attendees are required to:
 
 **If using Jupyter Notebook (on Google Colab):**
 - Have a Google account.
-- Download the Jupyter Notebook `jupyter/tutorial_fmi3_unifmu_incubator.ipynb` [here](jupyter/tutorial_fmi3_unifmu_incubator.ipynb).
-- Upload it to your Google Drive account or, alternatively, open it directly on [Google Colab](https://colab.research.google.com/).
-- If using Google Drive, open the file with `right click > Open with... > Google Colaboratory`. If directly using Google Colab, upload the Jupyter Notebook file with the options provided.
-  - Give permissions to Google Colab if needed.
-- Now you're able to use the Google Colab environment.
+- Open the Jupyter Notebook `jupyter/tutorial_fmi3_unifmu_incubator.ipynb` [here](jupyter/tutorial_fmi3_unifmu_incubator.ipynb) and then open it on Google Colab.
 
 ### Schedule
 - Demonstration with the running example (Incubator).
@@ -79,7 +74,7 @@ The scenario is as follows:
 ![incubator_scenario](figures/incubator_scenario.svg)
 
 ### Clocks
-The *supervisor* has associated a `triggered clock`, which is triggered every time the desired temperature has been reached 3 times.
+The *supervisor* has a `triggered clock`, which is triggered every time the desired temperature has been reached *n* times.
 The *controller* receives this `triggered clock` from the supervisor, and additionally has a `periodic clock` that updates the on/off output to the plant.
 
 ### Step-by-Step Implementation (Locally)
@@ -124,8 +119,6 @@ Once you have executed the co-simulation scenario with your updates, you can plo
 python plots/plot.py data/simulation_data.csv --save
 ```
 Use the `--save` flag to store the resulting plot in `plots/plot.pdf` and `plots/plot.png`. You can also change the input csv file as needed.
-
-### Q&A
 
 
 ## Acknowledgments
