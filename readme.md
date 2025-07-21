@@ -22,14 +22,14 @@ This repository contains the agenda and materials for the Tutorial on FMI3 co-si
 
 ## Agenda
 
-| Time  | Topic                                        |
-| ----- | -------------------------------------------- |
-| 13:30 | Introduction to FMI 3 and Clocks, and UniFMU |
-| 14:45 | Q&A                                          |
-| 15:00 | Break                                        |
-| 15:30 | Demo and Recreation of the Running Example   |
-| 16:30 | Q&A                                          |
-| 16:40 | End Tutorial                                 |
+| Time  | Topic                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------- |
+| 13:30 | [Introduction to FMI 3 and Clocks, and UniFMU](#introduction-to-fmi-3-and-clocks-and-unifmu) |
+| 14:45 | Q&A                                                                                          |
+| 15:00 | Break                                                                                        |
+| 15:30 | Demo and Recreation of the Running Example                                                   |
+| 16:30 | Q&A                                                                                          |
+| 16:40 | End Tutorial                                                                                 |
 
 ## Introduction to FMI 3 and Clocks, and UniFMU
 
