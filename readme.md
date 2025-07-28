@@ -78,15 +78,15 @@ The *supervisor* has a `triggered clock`, which is triggered every time the desi
 The *controller* receives this `triggered clock` from the supervisor, and additionally has a `periodic clock` that updates the on/off output to the plant.
 
 ### Step-by-Step Implementation (Locally)
-
-1. Creation of the FMUs with UniFMU. This creates the Python templates. The existing folders [plant](/plant), [controller](controller/), and [supervisor](supervisor/) already contain the worked-out logic for the example; feel free to update it as needed.
+0. Locate the binaries for your operating system in the folder `unifmu_0.12.0-beta_binaries`.
+1. Creation of the FMUs with UniFMU from scratch. This creates the Python templates. The existing folders [plant](/plant), [controller](controller/), and [supervisor](supervisor/) already contain the worked-out logic for the example; feel free to update it as needed.
     ```
     ./unifmu generate python supervisor fmi3
     ./unifmu generate python controller fmi3
     ./unifmu generate python plant fmi3
     ```
 
-2. Wrap the models as FMUs using the `wrap_fmus.sh` script:
+2. Wrap the models as FMUs using the `wrap_fmus.sh` script (Linux) or alternatively the `wrap_fmus.bat` script (Windows):
     ```
     ./wrap_fmus.sh
     ```
@@ -103,9 +103,9 @@ The *controller* receives this `triggered clock` from the supervisor, and additi
     **Windows:**
     ```
     python -m venv venv
-    source venv/Scripts/activate
+    venv/Scripts/activate
     pip install -r requirements.txt
-    Copy-Item fmpy\fmi3.py venv\lib\python<version>\site-packages\fmpy
+    xcopy fmpy\fmi3.py venv\Lib\site-packages\fmpy\ /Y /I
     ```
 
 4. With the virtual environment activated, execute the co-simulation scenario with the `co-simulation_scenario.py` script. Feel free to adapt the co-simulation parameters `end_simulation_time`, `start_simulation_time`, `step_size`, `simulation_program_delay`, and other co-simulation parameters while in initialization mode:
