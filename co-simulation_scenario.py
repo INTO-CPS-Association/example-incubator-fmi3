@@ -1,10 +1,9 @@
 # Author: Santiago Gil
 from fmpy import read_model_description, extract
-from fmpy.fmi3 import FMU3Slave,fmi3OK, fmi3ValueReference, fmi3Binary, fmi3Error
+from fmpy.fmi3 import FMU3Slave
 import shutil
 import logging
 import time
-import threading
 import pandas as pd
 
 
