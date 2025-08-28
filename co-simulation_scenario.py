@@ -18,28 +18,6 @@ sim_time = start_simulation_time # Holds the current time of the simulation
 step_size = 0.5
 simulation_program_delay = False # Set to True for real-time simulation
 
-class ThreadedTimer:
-    def __init__(self, interval, function, *args, **kwargs):
-        self.interval = interval
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-        self.stop_event = threading.Event()
-        self.thread = threading.Thread(target=self._run)
-        
-    def _run(self):
-        while not self.stop_event.is_set():
-            self.function(*self.args, **self.kwargs)
-            if simulation_program_delay:
-                time.sleep(self.interval)
-        
-    def start(self):
-        self.thread.start()
-        
-    def stop(self):
-        self.stop_event.set()
-        self.thread.join()
-
 columns = [
     "sim_time", 
     "supervisor_event",
@@ -74,8 +52,6 @@ for variable in model_description_controller.modelVariables:
     vrs_controller[variable.name] = variable.valueReference
 for variable in model_description_supervisor.modelVariables:
     vrs_supervisor[variable.name] = variable.valueReference
-
-
 
 plant_fmu = FMU3Slave(guid=model_description_plant.guid,
                 unzipDirectory=unzipdir_plant,
@@ -231,19 +207,18 @@ plant_fmu.exitInitializationMode()
 controller_fmu.exitInitializationMode()
 supervisor_fmu.exitInitializationMode()
 
-# Initialize periodic timer for controller clock
-def on_tick():
-    global controller_time_event
-    controller_time_event = True
-
-controller_clock_timer = ThreadedTimer(controller_clock_interval, on_tick)
-controller_clock_timer.start()
-
 # Co-simulation loop (loose coupling)
 logger.info(f"Initializing co-simulation for {end_simulation_time} seconds, with step size {step_size}, and real-time {simulation_program_delay}")
 while (sim_time < end_simulation_time):
     start_computation_time = time.perf_counter()
     step_mode = True
+
+    # Check controller clock event
+    if (sim_time != 0.0) and (sim_time % controller_clock_interval == 0.0):
+        controller_time_event = True
+    else:
+        controller_time_event = False
+
     for connection_src,connection_sink in timed_connections.items():
         connection_src_array = connection_src.split(".")
         # Get the current output
@@ -280,7 +255,7 @@ while (sim_time < end_simulation_time):
         # Only controller
         controller_fmu.enterEventMode()
         controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
-        controller_time_event = False
+        # controller_time_event = False
 
         # Get current outputs and set inputs
         o = controller_fmu.getBoolean([vrs_controller["heater_ctrl"]])[0]
@@ -311,7 +286,7 @@ while (sim_time < end_simulation_time):
 
         if controller_time_event:
             controller_fmu.setClock([vrs_controller["controller_clock"]],[True])
-            controller_time_event = False            
+            # controller_time_event = False            
 
         supervisor_clock = supervisor_fmu.getClock([vrs_supervisor["supervisor_clock"]])[0]
         controller_clock = controller_fmu.getClock([vrs_controller["controller_clock"]])[0]
@@ -389,7 +364,6 @@ while (sim_time < end_simulation_time):
         time.sleep(sleeping_time)
     
 # Terminate instances
-controller_clock_timer.stop()
 plant_fmu.terminate()
 plant_fmu.freeInstance()
 controller_fmu.terminate()
