@@ -13,21 +13,21 @@
   <ModelVariables>
 	<Float64 name="time" valueReference="999" causality="independent" variability="continuous" description="Simulation time"/>
 	
-	<Float32 name="box_air_temperature" valueReference="0" variability="continuous" causality="input" start="0.0" />
+	<Float64 name="box_air_temperature" valueReference="0" variability="continuous" causality="input" start="0.0" />
 	<Boolean name="heater_ctrl" valueReference="1" variability="discrete" causality="output" initial="calculated" clocks="1001" />
-	<Float32 name="temperature_desired" valueReference="2" variability="continuous" causality="input" start="35.0" clocks="1002" />
-	<Float32 name="heating_time" valueReference="3" variability="continuous" causality="input" start="20.0" clocks="1002" />
+	<Float64 name="temperature_desired" valueReference="2" variability="continuous" causality="input" start="35.0" clocks="1002" />
+	<Float64 name="heating_time" valueReference="3" variability="continuous" causality="input" start="20.0" clocks="1002" />
 	<!-- <Float32 name="temperature_desired" valueReference="100" variability="tunable" causality="parameter" start="35.0" /> -->
 	
-	<Float32 name="lower_bound" valueReference="101" variability="tunable" causality="parameter" start="5.0" />
+	<Float64 name="lower_bound" valueReference="101" variability="tunable" causality="parameter" start="5.0" />
 	<!-- <Float32 name="heating_time" valueReference="102" variability="tunable" causality="parameter" start="20.0" /> -->
 	
-	<Float32 name="heating_gap" valueReference="103" variability="tunable" causality="parameter" start="20.0" />
+	<Float64 name="heating_gap" valueReference="103" variability="tunable" causality="parameter" start="20.0" />
 	<!-- <UInt32 name="n_samples_period" valueReference="104" variability="tunable" causality="parameter" start="40" />
 	<UInt32 name="n_samples_heating" valueReference="105" variability="tunable" causality="parameter" start="5" /> -->
 
 
-	<Clock name="controller_clock" valueReference="1001" causality="input" intervalVariability="constant" intervalDecimal="1.0"/>
+	<Clock name="controller_clock" valueReference="1001" causality="input" intervalVariability="constant" intervalDecimal="3.0" shiftDecimal="3.0"/>
 	<Clock name="supervisor_clock" valueReference="1002" causality="input" intervalVariability="triggered"/>
 
 

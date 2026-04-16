@@ -429,10 +429,12 @@ class Model:
                 else:
                     return Fmi3Status.error
             elif (r in self.parameters):
-                if (self.state == FMIState.FMIInitializationModeState):
-                    pass
-                else:
-                    return Fmi3Status.error
+                #if (self.state == FMIState.FMIInitializationModeState):
+                # this is too simple it must check the type for all parameters. A fixed can be set at any time in the instantiated state. 2.3.2 state instantiated
+                setattr(self, self.parameters[r], v)
+                return Fmi3Status.ok
+                #else:
+               #     return Fmi3Status.error
             setattr(self, self.all_references[r], v)
         return Fmi3Status.ok
 

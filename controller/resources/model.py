@@ -49,6 +49,11 @@ class Model:
             1001: 1.0,
         }
 
+        self.clock_reference_to_shift   = {
+            1001: 0.0,
+        }
+        self.controller_clock = False
+
         self.reference_to_attribute = {
             999: "time",
             0: "box_air_temperature",
@@ -175,7 +180,7 @@ class Model:
                     #self.next_action_timer = -1.0
 
         # Resetting the clock
-        if (self.controller_clock):
+        if self.controller_clock:
             self.controller_clock = False
 
         # Setting outputs
