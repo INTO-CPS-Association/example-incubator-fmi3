@@ -1,0 +1,35 @@
+{
+  "fmus": {
+    "{plantFmu}": "plant",
+    "{controllerFmu}": "controller",
+    "{supervisorFmu}": "supervisor"
+  },
+  "connections": {
+    "{plantFmu}.plant.T": [
+      "{controllerFmu}.controller.box_air_temperature",
+      "{supervisorFmu}.supervisor.T"
+    ],
+    "{plantFmu}.plant.T_heater": [
+      "{supervisorFmu}.supervisor.T_heater"
+    ],
+    "{controllerFmu}.controller.heater_ctrl": [
+      "{plantFmu}.plant.in_heater_on"
+    ],
+    "{supervisorFmu}.supervisor.heating_time": [
+      "{controllerFmu}.controller.heating_time"
+    ],
+    "{supervisorFmu}.supervisor.temperature_desired": [
+      "{controllerFmu}.controller.temperature_desired"
+    ],
+    "{supervisorFmu}.supervisor.supervisor_clock": [
+      "{controllerFmu}.controller.supervisor_clock"
+    ]
+  },
+  "parameters": {
+    "{supervisorFmu}.supervisor.desired_temperature_parameter": 35,
+    "{controllerFmu}.controller.lower_bound": 5,
+    "{supervisorFmu}.supervisor.trigger_optimization_threshold": 5,
+    "{supervisorFmu}.supervisor.wait_til_supervising_timer": 100,
+    "{supervisorFmu}.supervisor.setpoint_achievements_parameter": 1
+  }
+}

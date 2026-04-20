@@ -1,0 +1,9 @@
+{
+  "algorithm": {
+    "type": "fixed-step",
+    "size": 0.5
+  },
+  "endTime": 1000,
+  "startTime": 0,
+  "multimodel_crc": "5db799917e1c1b400164d077fe1015e1"
+}

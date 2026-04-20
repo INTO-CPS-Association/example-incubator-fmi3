@@ -1,0 +1,5 @@
+*_merged.csv
+simulation
+*.log
+FMUs
+maestro-4.1.0-jar-with-dependencies.jar
